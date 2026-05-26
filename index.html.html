@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Variación de Materiales</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0b0f1a; --surface:#141929; --surface2:#1c2438; --border:#252e45;
+  --accent:#00e5c3; --accent2:#6c9cff; --accent3:#ffd166; --accent4:#ff6b6b;
+  --text:#e8edf5; --text-muted:#7a8aaa;
+  --positive:#00c896; --negative:#ff5252; --radius:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,195,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,195,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+#loading-overlay{position:fixed;inset:0;z-index:200;background:rgba(11,15,26,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'Syne',sans-serif;font-size:13px;color:var(--text-muted);letter-spacing:1px}
+#dashboard{display:none;position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:10px 24px 10px}
+header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:16px}
+.header-left h1{font-family:'Georgia',sans-serif;font-size:clamp(32px,4vw,90px);font-weight:800;line-height:1.1;letter-spacing:-1px}
+.header-left h1 span{color:var(--accent)}
+.header-left p{color:var(--text-muted);margin-top:6px;font-size:14px}
+.badge{background:linear-gradient(135deg,var(--accent),#00bfa5);color:#0b0f1a;font-family:'DM Sans',sans-serif;font-weight:700;font-size:11px;padding:5px 12px;border-radius:20px;letter-spacing:1px;text-transform:uppercase}
+.filters{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;align-items:flex-end;position:relative;z-index:10}
+.filters label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',sans-serif;margin-bottom:4px}
+.filter-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px;position:relative}
+.custom-dropdown { position: relative; width: 100%; }
+.dropdown-trigger {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: 10px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center; user-select: none;
+  transition: border-color .2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dropdown-trigger:after { content: '▼'; font-size: 9px; color: var(--text-muted); margin-left: 8px; transition: transform 0.2s; }
+.custom-dropdown.active .dropdown-trigger { border-color: var(--accent); }
+.custom-dropdown.active .dropdown-trigger:after { transform: rotate(180deg); }
+.dropdown-menu {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; width: 100%;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  max-height: 280px; overflow: hidden; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  flex-direction: column;
+}
+.custom-dropdown.active .dropdown-menu { display: flex; }
+.dropdown-search-wrap { padding: 8px 10px 6px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.dropdown-search {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 10px; border-radius: 6px; font-size: 12px; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color .2s;
+}
+.dropdown-search:focus { border-color: var(--accent); }
+.dropdown-search::placeholder { color: var(--text-muted); }
+.dropdown-items-wrap { overflow-y: auto; flex: 1; padding: 4px 0; }
+.dropdown-item { display: flex; align-items: center; gap: 10px; padding: 8px 14px; font-size: 13px; cursor: pointer; transition: background 0.15s; user-select: none; }
+.dropdown-item:hover { background: rgba(0, 229, 195, 0.08); }
+.dropdown-item input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+.dropdown-item.all-option { border-bottom: 1px solid var(--border); font-weight: 600; color: var(--accent); }
+.filter-actions { display: flex; align-items: center; gap: 16px; margin-bottom: 2px; flex-wrap: nowrap; }
+.btn-reset{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:0 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;height:38px;white-space:nowrap}
+.btn-reset:hover{border-color:var(--accent);color:var(--accent)}
+.btn-refresh{background:transparent;border:1px solid var(--accent);color:var(--accent);padding:8px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .2s}
+.btn-refresh:hover{background:var(--accent);color:#0b0f1a}
+.switch-container { display: flex; align-items: center; gap: 8px; user-select: none; cursor: pointer; white-space: nowrap; }
+.switch-label { font-size: 12px; color: var(--text-muted); font-family: 'DM Sans', sans-serif; text-transform: uppercase; letter-spacing: .5px; }
+.switch { position: relative; display: inline-block; width: 38px; height: 20px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; background-color: var(--surface2); border: 1px solid var(--border); transition: .3s; border-radius: 20px; }
+.slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: var(--text-muted); transition: .3s; border-radius: 50%; }
+input:checked + .slider { background-color: rgba(0, 229, 195, 0.15); border-color: var(--accent); }
+input:checked + .slider:before { transform: translateX(18px); background-color: var(--accent); }
+#error-msg{display:none;background:rgba(255,82,82,.1);border:1px solid var(--negative);color:var(--negative);border-radius:10px;padding:12px 18px;font-size:13px;margin-bottom:20px}
+.scorecards{display:grid;grid-template-columns:repeat(6, 1fr);gap:14px;margin-bottom:28px}
+@media(max-width:1200px){.scorecards{grid-template-columns:repeat(3, 1fr)}}
+@media(max-width:768px){.scorecards{grid-template-columns:repeat(2, 1fr)}}
+@media(max-width:480px){.scorecards{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;animation:fadeUp .5s ease both;display:flex;flex-direction:column;justify-content:space-between}
+.card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+.card.c1::after{background:linear-gradient(90deg,var(--accent),#00bfa5)}
+.card.c2::after{background:linear-gradient(90deg,var(--accent2),#4a82f6)}
+.card.c4::after{background:linear-gradient(90deg,var(--accent3),#ffb03a)}
+.card.c5::after{background:linear-gradient(90deg,var(--accent4),#f64a4a)}
+.card-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',sans-serif;margin-bottom:10px}
+.card-value{font-family:'DM Sans',sans-serif;font-size:clamp(14px, 1.8vw, 20px);font-weight:800;line-height:1.1;word-break:break-all}
+.card-sub{font-size:11px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pos{color:var(--negative)} .neg{color:var(--positive)}
+.charts-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:20px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:border-color .2s;animation:fadeUp .5s ease both}
+.chart-card:hover{border-color:rgba(0,229,195,.3)}
+.col-8{grid-column:span 8} .col-4{grid-column:span 4} .col-6{grid-column:span 6} .col-12{grid-column:span 12}
+@media(max-width:1024px){.col-8,.col-4,.col-6{grid-column:span 12}}
+.chart-title{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px}
+.chart-subtitle{font-size:12px;color:var(--text-muted);margin-bottom:20px}
+.chart-wrap{position:relative;height:280px}
+.chart-wrap-sm{position:relative;height:240px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--surface2);color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:12px 16px;white-space:nowrap}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif}
+.pill-pos{background:rgba(255,82,82,.15);color:var(--negative)}
+.pill-neg{background:rgba(0,200,150,.15);color:var(--positive)}
+.table-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.table-search {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 14px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+  width: 260px; outline: none; transition: border-color .2s;
+}
+.table-search:focus { border-color: var(--accent); }
+.table-search::placeholder { color: var(--text-muted); }
+.pagination {
+  display: flex; align-items: center; gap: 6px;
+}
+.page-info { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.btn-page {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+  padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; transition: all .2s;
+}
+.btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn-page:disabled { opacity: 0.35; cursor: not-allowed; }
+.page-size-select {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+  padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; outline: none;
+}
+.legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
+.legend-dot{width:10px;height:10px;border-radius:2px}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+footer p{font-size:12px;color:var(--text-muted)}
+.dot-live{display:inline-block;width:7px;height:7px;background:var(--accent);border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,229,195,.4)}50%{opacity:.8;box-shadow:0 0 0 6px rgba(0,229,195,0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { color: var(--accent); }
+.sortable::after { content: ' ↕'; font-size: 9px; opacity: 0.4; }
+.sortable.asc::after { content: ' ↑'; opacity: 1; color: var(--accent); }
+.sortable.desc::after { content: ' ↓'; opacity: 1; color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Conectando con base de datos en tiempo real…</div>
+</div>
+<div id="dashboard">
+  <header>
+    <div class="header-left">
+      <h1>Análisis de <span>Variación</span><br>de Materiales</h1>
+      <p id="header-sub">Consumo Planeado vs. Consumo Real · 2026</p>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+      <img
+        src="https://cdn.prod.website-files.com/66537445954fcf4f02ffd332/66549f6a095c901c4fc1be5d_logo_meals_azul.png"
+        alt="Logo"
+        style="height:112px;width:auto;object-fit:contain;filter:brightness(1.05)"
+        onerror="this.style.display='none'"
+      />
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn-refresh" onclick="cargarDesdeSheets()">🔄 Sincronizar Ahora</button>
+      </div>
+    </div>
+  </header>
+  <div id="error-msg"></div>
+  <div class="filters">
+    <div class="filter-group">
+      <label>Línea</label>
+      <div class="custom-dropdown" id="d-linea">
+        <div class="dropdown-trigger" onclick="toggleDropdown('d-linea')">Todas las líneas</div>
+        <div class="dropdown-menu" id="m-linea"></div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Mes</label>
+      <div class="custom-dropdown" id="d-mes">
+        <div class="dropdown-trigger" onclick="toggleDropdown('d-mes')">Todos los meses</div>
+        <div class="dropdown-menu" id="m-mes"></div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Tipo</label>
+      <div class="custom-dropdown" id="d-tipo">
+        <div class="dropdown-trigger" onclick="toggleDropdown('d-tipo')">Todos los tipos</div>
+        <div class="dropdown-menu" id="m-tipo"></div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Producto</label>
+      <div class="custom-dropdown" id="d-producto">
+        <div class="dropdown-trigger" onclick="toggleDropdown('d-producto')">Todos los productos</div>
+        <div class="dropdown-menu" id="m-producto"></div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Material</label>
+      <div class="custom-dropdown" id="d-material">
+        <div class="dropdown-trigger" onclick="toggleDropdown('d-material')">Todos los materiales</div>
+        <div class="dropdown-menu" id="m-material"></div>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <div class="switch-container" onclick="toggleOutliersSwitch(event)">
+        <span class="switch-label">Excluir Reprocesos/Mermas</span>
+        <label class="switch">
+          <input type="checkbox" id="switch-outliers" onchange="applyFilters()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <button class="btn-reset" onclick="resetFilters()">↺ Limpiar filtros</button>
+    </div>
+  </div>
+  <div class="scorecards">
+    <div class="card c1"><div class="card-label">Total Plan (KG)</div><div class="card-value" id="sc-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo planeado</div></div>
+    <div class="card c2"><div class="card-label">Total Real (KG)</div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
+    <div class="card c3" id="card-var-kg-box"><div class="card-label">Variación KG</div><div class="card-value" id="sc-var-kg">—</div><div class="card-sub" id="sc-var-kg-pct">—</div></div>
+    <div class="card c4"><div class="card-label">Costo Plan</div><div class="card-value" id="sc-costo-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Presupuesto total</div></div>
+    <div class="card c5"><div class="card-label">Costo Real</div><div class="card-value" id="sc-costo-real">—</div><div class="card-sub" style="color:var(--text-muted)">Gasto real total</div></div>
+    <div class="card c6" id="card-var-costo-box"><div class="card-label">Variación Costo</div><div class="card-value" id="sc-var-costo-val">—</div><div class="card-sub" id="sc-var-costo-pct">—</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card col-6">
+      <div class="chart-title">Plan vs Real por Línea de Producción</div>
+      <div class="chart-subtitle">Comparación de consumo en KG por línea</div>
+      <div class="chart-wrap"><canvas id="chart-linea"></canvas></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>Plan (KG)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6c9cff"></div>Real (KG)</div>
+      </div>
+    </div>
+    <div class="chart-card col-6">
+      <div class="chart-title">Plan vs Real por Producto (KG)</div>
+      <div class="chart-subtitle">Comparación de consumo en KG por producto (Top 15)</div>
+      <div class="chart-wrap"><canvas id="chart-kg-producto"></canvas></div>
+      <div class="legend" style="margin-top:10px;">
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>Plan (KG)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6c9cff"></div>Real (KG)</div>
+      </div>
+    </div>
+    <div class="chart-card col-6">
+      <div class="chart-title">Top Variaciones por Material</div>
+      <div class="chart-subtitle">% desviación real vs planeado (top 10)</div>
+      <div class="chart-wrap"><canvas id="chart-material"></canvas></div>
+    </div>
+    <div class="chart-card col-6">
+      <div class="chart-title">Tendencia Mensual de Variación</div>
+      <div class="chart-subtitle">Variación % acumulada por mes</div>
+      <div class="chart-wrap"><canvas id="chart-mes"></canvas></div>
+    </div>
+    <div class="chart-card col-12">
+      <div class="chart-title">Comparativo de Costos por Producto (Top 15 Impacto Real)</div>
+      <div class="chart-subtitle">Presupuesto asignado (Costo Plan) frente al gasto ejecutado (Costo Real) sumado por cada producto</div>
+      <div class="chart-wrap" style="height:360px;"><canvas id="chart-costos-barras"></canvas></div>
+      <div class="legend" style="margin-top:15px;">
+        <div class="legend-item"><div class="legend-dot" style="background:#ffd166"></div>Costo Plan ($)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Costo Real ($)</div>
+      </div>
+    </div>
+    <div class="chart-card col-12">
+      <div class="chart-title">Comparativo de Costos por Material (Top 15 Impacto Real)</div>
+      <div class="chart-subtitle">Presupuesto asignado (Costo Plan) frente al gasto ejecutado (Costo Real) sumado por cada material</div>
+      <div class="chart-wrap" style="height:360px;"><canvas id="chart-costos-material"></canvas></div>
+      <div class="legend" style="margin-top:15px;">
+        <div class="legend-item"><div class="legend-dot" style="background:#ffd166"></div>Costo Plan ($)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Costo Real ($)</div>
+      </div>
+    </div>
+    <div class="chart-card col-12">
+      <div class="chart-title">Detalle por Línea y Producto</div>
+      <div class="chart-subtitle">Resumen agregado con indicadores de variación</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Línea</th><th>Producto</th><th>Plan KG</th><th>Real KG</th><th>Var KG %</th><th>Costo Plan</th><th>Costo Real</th><th>Var Costo %</th><th>Estado</th></tr></thead>
+          <tbody id="tabla-detalle"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="chart-card col-12">
+      <div class="chart-title">Detalle de Costos por Material</div>
+      <div class="chart-subtitle">Consumo acumulado e impacto financiero indexado por tipo de material</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Material / Componente</th>
+              <th>Plan KG</th>
+              <th>Real KG</th>
+              <th>Var KG %</th>
+              <th>Costo Plan</th>
+              <th>Costo Real</th>
+              <th>Var Costo ($)</th>
+              <th>Var Costo %</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-materiales-costo"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="chart-card col-12">
+      <div class="chart-title">Detalle por Orden de Producción</div>
+      <div class="chart-subtitle">Desglose individual por cada orden · Línea · Producto con indicadores de variación</div>
+      <div class="table-controls">
+        <input
+          class="table-search"
+          id="orden-search"
+          type="text"
+          placeholder="🔍 Buscar por orden, línea o producto…"
+          oninput="ordenTableState.page=1; renderTablaOrden()"
+        />
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="page-info" id="orden-page-info"></span>
+          <select class="page-size-select" id="orden-page-size" onchange="ordenTableState.page=1;ordenTableState.pageSize=+this.value;renderTablaOrden()">
+            <option value="20">20 / pág</option>
+            <option value="50">50 / pág</option>
+            <option value="100">100 / pág</option>
+            <option value="9999">Todos</option>
+          </select>
+          <div class="pagination">
+            <button class="btn-page" id="btn-prev-orden" onclick="ordenTableState.page--;renderTablaOrden()">← Ant</button>
+            <button class="btn-page" id="btn-next-orden" onclick="ordenTableState.page++;renderTablaOrden()">Sig →</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="tabla-orden-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-col="orden" onclick="ordenSort('orden')">Orden</th>
+              <th class="sortable" data-col="linea" onclick="ordenSort('linea')">Línea</th>
+              <th class="sortable" data-col="prod" onclick="ordenSort('prod')">Producto</th>
+              <th class="sortable" data-col="fecha" onclick="ordenSort('fecha')">Fecha</th>
+              <th class="sortable" data-col="plan" onclick="ordenSort('plan')">Plan KG</th>
+              <th class="sortable" data-col="real" onclick="ordenSort('real')">Real KG</th>
+              <th class="sortable" data-col="varKGpct" onclick="ordenSort('varKGpct')">Var KG %</th>
+              <th class="sortable" data-col="cp" onclick="ordenSort('cp')">Costo Plan</th>
+              <th class="sortable" data-col="cr" onclick="ordenSort('cr')">Costo Real</th>
+              <th class="sortable" data-col="varCoPct" onclick="ordenSort('varCoPct')">Var Costo %</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-orden"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <p id="footer-info">Dashboard · Variación de Materiales · 2026</p>
+    <p><span class="dot-live"></span>Conectado en vivo a Google Sheets</p>
+  </footer>
+  <div style="text-align:right;padding:14px 0 36px;margin-top:4px">
+    <p style="font-family:'Georgia',serif;font-size:12px;color:var(--text-muted);letter-spacing:.4px;font-style:italic">
+      Desarrollado por <span style="color:var(--text);font-style:normal;font-weight:600">Brayan Quiroga</span>
+    </p>
+  </div>
+</div>
+
+<script>
+const SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSlwwBEM71qFAYSUUnvGpi8z6WiTu0q9Eu9G6xQTVhHYEOpTS4_tt-o4H9iNjgLbTQ0eIJPmVBQdbug/pub?gid=2121479416&single=true&output=csv";
+const OUTLIERS_MATERIALS = [
+  "reproceso mezcla crema","desperdicio mezcla crema",
+  "reproceso mezcla agua","desperdicio mezcla agua"
+];
+let rawData = [];
+let filteredData = [];
+let charts = {};
+let selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'] };
+const mesOrder = {ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+let ordenTableState = {
+  page: 1,
+  pageSize: 20,
+  sortCol: 'fecha',
+  sortDir: 'asc',
+  rows: []
+};
+const COLORS = {
+  accent:'#00e5c3', accent2:'#6c9cff', accent3:'#ffd166',
+  accent4:'#ff6b6b', pos:'#ff5252', neg:'#00c896', muted:'#7a8aaa'
+};
+
+Chart.defaults.color = '#7a8aaa';
+Chart.defaults.borderColor = '#252e45';
+Chart.defaults.font.family = 'DM Sans';
+
+window.addEventListener('DOMContentLoaded', () => cargarDesdeSheets(false));
+window.addEventListener('click', function(e) {
+  if (!e.target.closest('.custom-dropdown')) {
+    document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('active'));
+  }
+});
+
+function toggleDropdown(id) {
+  const el = document.getElementById(id);
+  const wasActive = el.classList.contains('active');
+  document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('active'));
+  if (!wasActive) {
+    el.classList.add('active');
+    setTimeout(() => { const s = el.querySelector('.dropdown-search'); if(s) s.focus(); }, 50);
+  }
+}
+
+function toggleOutliersSwitch(e) {
+  if(e.target.tagName !== 'INPUT') {
+    const cb = document.getElementById('switch-outliers');
+    cb.checked = !cb.checked;
+    applyFilters();
+  }
+}
+
+// Optimización de red: Solo añade Cache Buster si el usuario da clic explícito en "Sincronizar"
+function cargarDesdeSheets(forzarSincronizacion = false) {
+  document.getElementById('loading-overlay').style.display = 'flex';
+  document.getElementById('error-msg').style.display = 'none';
+  
+  const url = forzarSincronizacion ? SHEETS_CSV_URL + "&t=" + new Date().getTime() : SHEETS_CSV_URL;
+  
+  fetch(url)
+    .then(response => {
+      if (!response.ok) throw new Error('No se pudo conectar con el servidor de Google.');
+      return response.text();
+    })
+    .then(csvText => {
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: 'greedy',
+        fastMode: true,
+        complete: function(results) {
+          try {
+            const mapped = parseRows(results.data);
+            if (mapped.length === 0) throw new Error('No se detectaron datos válidos.');
+            
+            Object.keys(charts).forEach(k => { if(charts[k]) charts[k].destroy(); });
+            charts = {};
+            
+            rawData = mapped;
+            filteredData = [...rawData];
+            
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            
+            resetSelectionsObject();
+            populateFilters(true); // Inicialización forzada
+            applyFilters();
+          } catch(err) { manejarError(err.message); }
+        }
+      });
+    })
+    .catch(err => manejarError(err.message));
+}
+
+// Vinculación directa al botón HTML
+document.querySelector(".btn-refresh").setAttribute("onclick", "cargarDesdeSheets(true)");
+
+function manejarError(msg) {
+  document.getElementById('loading-overlay').style.display = 'none';
+  const errorDiv = document.getElementById('error-msg');
+  errorDiv.textContent = '⚠️ Error actualizando base de datos cloud: ' + msg;
+  errorDiv.style.display = 'block';
+}
+
+function parseNum(val) {
+  if (val === undefined || val === null) return 0;
+  let s = String(val).trim().replace(/\s/g, '').replace(/\$/g, '').replace(/COP/gi, '');
+  if (!s) return 0;
+  if (s.includes(',')) s = s.replace(',', '.');
+  const res = parseFloat(s);
+  return isNaN(res) ? 0 : res;
+}
+
+function parseStr(val) { return String(val || '').trim(); }
+
+function col(row, ...names) {
+  for (const n of names) {
+    const k = Object.keys(row).find(k => k.trim().toLowerCase() === n.toLowerCase());
+    if (k !== undefined && row[k] !== undefined) return row[k];
+  }
+  return '';
+}
+
+function parseFecha(val) {
+  const s = parseStr(val);
+  if (!s) return null;
+  const dmY = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (dmY) return new Date(+dmY[3], +dmY[2]-1, +dmY[1]);
+  const Ymd = s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (Ymd) return new Date(+Ymd[1], +Ymd[2]-1, +Ymd[3]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function fmtFecha(fecha) {
+  if (!fecha) return '—';
+  return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function parseRows(data) {
+  return data.map(row => ({
+    orden:        parseStr(col(row,'Orden')),
+    material:      parseStr(col(row,'Material')),
+    materialDesc: parseStr(col(row,'Texto breve material','Texto Breve Material')),
+    producto:      parseStr(col(row,'Texto Breve Producto','Texto breve producto','TextoBreveProd')),
+    mes:          parseStr(col(row,'Mes')).toLowerCase(),
+    fecha:        parseFecha(col(row,'Fecha','fecha','FECHA')),
+    tipo:          parseStr(col(row,'Tipo')),
+    linea:        parseStr(col(row,'Linea','Linea_','Línea')),
+    plan:          parseNum(col(row,'Cant_Plan_(KG)','Cant Plan (KG)','CantPlanKG')),
+    real:          parseNum(col(row,'Cant_Real_(KG)','Cant Real (KG)','CantRealKG')),
+    costoPlan:    parseNum(col(row,'Costo_Plan','Costo Plan','CostoPlan')),
+    costoReal:    parseNum(col(row,'Costo_Real','Costo Real','CostoReal')),
+  })).filter(d => d.linea && (d.plan !== 0 || d.real !== 0 || d.costoPlan !== 0 || d.costoReal !== 0));
+}
+
+function resetSelectionsObject() {
+  selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'] };
+  document.getElementById('switch-outliers').checked = true;
+}
+
+// populateFilters optimizado con Sets para evitar O(N^2) y renderizado controlado
+function populateFilters(forceRebuild = false) {
+  if (!forceRebuild) return; // Rompe el bucle infinito destructivo con applyFilters
+
+  const excludeOutliers = document.getElementById('switch-outliers').checked;
+  const uniqueSets = { linea: new Set(), mes: new Set(), tipo: new Set(), producto: new Set(), material: new Set() };
+
+  // Una sola pasada rápida para recolectar datos únicos
+  const len = rawData.length;
+  for (let i = 0; i < len; i++) {
+    const d = rawData[i];
+    const matName = d.materialDesc || d.material;
+    if (excludeOutliers && OUTLIERS_MATERIALS.includes(matName.toLowerCase())) continue;
+
+    uniqueSets.linea.add(d.linea);
+    uniqueSets.mes.add(d.mes);
+    uniqueSets.tipo.add(d.tipo);
+    uniqueSets.producto.add(d.producto);
+    uniqueSets.material.add(matName);
+  }
+
+  const filterSpecs = [
+    { dropdownId: 'd-linea', menuId: 'm-linea', key: 'linea', textAll: 'Todas las líneas', sortFn: null },
+    { dropdownId: 'd-mes', menuId: 'm-mes', key: 'mes', textAll: 'Todos los meses', sortFn: (a,b) => (mesOrder[a]||99) - (mesOrder[b]||99) },
+    { dropdownId: 'd-tipo', menuId: 'm-tipo', key: 'tipo', textAll: 'Todos los tipos', sortFn: null },
+    { dropdownId: 'd-producto', menuId: 'm-producto', key: 'producto', textAll: 'Todos los productos', sortFn: null },
+    { dropdownId: 'd-material', menuId: 'm-material', key: 'material', textAll: 'Todos los materiales', sortFn: null }
+  ];
+
+  filterSpecs.forEach(spec => {
+    const menu = document.getElementById(spec.menuId);
+    const dropdownEl = document.getElementById(spec.dropdownId);
+    const trigger = dropdownEl.querySelector('.dropdown-trigger');
+    
+    let uniqueItems = Array.from(uniqueSets[spec.key]).filter(Boolean);
+    if (spec.sortFn) uniqueItems.sort(spec.sortFn); else uniqueItems.sort();
+
+    menu.innerHTML = '';
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'dropdown-search-wrap';
+    searchWrap.innerHTML = `<input class="dropdown-search" type="text" placeholder="🔍 Buscar…">`;
+    searchWrap.onclick = e => e.stopPropagation();
+    menu.appendChild(searchWrap);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'dropdown-items-wrap';
+    menu.appendChild(itemsWrap);
+
+    const currentKeys = selections[spec.key];
+    const isAllChecked = currentKeys.includes('all');
+
+    function buildItems(filter) {
+      let htmlBuilder = [];
+      const isAllVisible = !filter || spec.textAll.toLowerCase().includes(filter);
+      
+      if (isAllVisible) {
+        htmlBuilder.push(`<div class="dropdown-item all-option" data-val="all"><input type="checkbox" value="all" ${isAllChecked ? 'checked' : ''}> <span>${spec.textAll}</span></div>`);
+      }
+
+      for(let i=0; i<uniqueItems.length; i++) {
+        const val = uniqueItems[i];
+        const displayLabel = spec.key === 'mes' ? val.charAt(0).toUpperCase() + val.slice(1) : val;
+        if (filter && !displayLabel.toLowerCase().includes(filter)) continue;
+        
+        const isChecked = !isAllChecked && currentKeys.includes(val);
+        htmlBuilder.push(`<div class="dropdown-item" data-val="${val}"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''}> <span>${displayLabel}</span></div>`);
+      }
+      
+      itemsWrap.innerHTML = htmlBuilder.join('');
+
+      // Delegación de eventos eficiente
+      itemsWrap.querySelectorAll('.dropdown-item').forEach(el => {
+        el.onclick = (e) => handleCheckboxChange(e, spec.key, el.dataset.val);
+      });
+    }
+
+    buildItems('');
+    
+    searchWrap.querySelector('.dropdown-search').addEventListener('input', function() {
+      buildItems(this.value.toLowerCase());
+    });
+
+    if (isAllChecked || currentKeys.length === 0) trigger.textContent = spec.textAll;
+    else if (currentKeys.length === 1) trigger.textContent = spec.key === 'mes' ? currentKeys[0].charAt(0).toUpperCase() + currentKeys[0].slice(1) : currentKeys[0];
+    else trigger.textContent = `${currentKeys.length} seleccionados`;
+  });
+}
+
+function handleCheckboxChange(e, key, value) {
+  e.stopPropagation();
+  const checkbox = e.currentTarget.querySelector('input');
+  if(e.target.tagName !== 'INPUT') checkbox.checked = !checkbox.checked;
+  
+  let currentValues = selections[key];
+  if (value === 'all') {
+    selections[key] = ['all'];
+  } else {
+    currentValues = currentValues.filter(v => v !== 'all');
+    if (checkbox.checked) { if (!currentValues.includes(value)) currentValues.push(value); }
+    else { currentValues = currentValues.filter(v => v !== value); }
+    if (currentValues.length === 0) currentValues = ['all'];
+    selections[key] = currentValues;
+  }
+  applyFilters();
+}
+
+// Búsqueda Ultra-Rápida indexada en Sets O(1)
+function applyFilters() {
+  const excludeOutliers = document.getElementById('switch-outliers').checked;
+  
+  const setLinea = new Set(selections.linea);
+  const setMes = new Set(selections.mes);
+  const setTipo = new Set(selections.tipo);
+  const setProducto = new Set(selections.producto);
+  const setMaterial = new Set(selections.material);
+
+  const hasAllLinea = setLinea.has('all');
+  const hasAllMes = setMes.has('all');
+  const hasAllTipo = setTipo.has('all');
+  const hasAllProducto = setProducto.has('all');
+  const hasAllMaterial = setMaterial.has('all');
+
+  filteredData = rawData.filter(d => {
+    const matName = d.materialDesc || d.material;
+    if (excludeOutliers && OUTLIERS_MATERIALS.includes(matName.toLowerCase())) return false;
+    
+    return (hasAllLinea || setLinea.has(d.linea)) &&
+           (hasAllMes || setMes.has(d.mes)) &&
+           (hasAllTipo || setTipo.has(d.tipo)) &&
+           (hasAllProducto || setProducto.has(d.producto)) &&
+           (hasAllMaterial || setMaterial.has(matName));
+  });
+
+  renderAll();
+}
+
+function resetFilters() {
+  resetSelectionsObject();
+  filteredData = [...rawData];
+  populateFilters(true);
+  renderAll();
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('es-CO'); }
+function fmtCOP(n) {
+  if (n < 0) return '-$' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+  return '$' + Math.round(n).toLocaleString('es-CO');
+}
+function fmtCostoExacto(n) {
+  const prefijo = n > 0 ? '+$' : (n < 0 ? '-$' : '$');
+  return prefijo + Math.abs(Math.round(n)).toLocaleString('es-CO');
+}
+function fmtPct(n) { return (n>=0?'+':'')+(n*100).toFixed(2)+'%'; }
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+// PROCESAMIENTO GLOBAL EN UNA SOLA PASADA (Single-Pass Aggregation)
+// Reducimos el coste computacional general de O(8N) a solo O(1N)
+function renderAll() {
+  let totalPlan = 0, totalReal = 0, cpTotal = 0, crTotal = 0;
+  
+  const lineasMap = {}, prodMap = {}, matMap = {}, mesMap = {}, prodCostoMap = {}, matCostoMap = {}, tableMap = {}, matTableMap = {};
+  const ordenMap = new Map();
+
+  const len = filteredData.length;
+  for(let i=0; i<len; i++) {
+    const d = filteredData[i];
+    
+    // Scorecards acumuladores globales
+    totalPlan += d.plan;
+    totalReal += d.real;
+    cpTotal += d.costoPlan;
+    crTotal += d.costoReal;
+
+    // Agrupación por Línea
+    if (!lineasMap[d.linea]) lineasMap[d.linea] = { plan: 0, real: 0 };
+    lineasMap[d.linea].plan += d.plan;
+    lineasMap[d.linea].real += d.real;
+
+    // Agrupación por Producto (KG)
+    const p = d.producto || 'Sin Nombre';
+    if (!prodMap[p]) prodMap[p] = { plan: 0, real: 0 };
+    prodMap[p].plan += d.plan;
+    prodMap[p].real += d.real;
+
+    // Agrupación por Material (Variaciones)
+    const m = d.materialDesc || d.material;
+    if (!matMap[m]) matMap[m] = { plan: 0, real: 0 };
+    matMap[m].plan += d.plan;
+    matMap[m].real += d.real;
+
+    // Tendencia Mensual
+    if (!mesMap[d.mes]) mesMap[d.mes] = { planKG: 0, realKG: 0, planCosto: 0, realCosto: 0 };
+    mesMap[d.mes].planKG += d.plan;
+    mesMap[d.mes].realKG += d.real;
+    mesMap[d.mes].planCosto += d.costoPlan;
+    mesMap[d.mes].realCosto += d.costoReal;
+
+    // Costo por Producto
+    if (!prodCostoMap[p]) prodCostoMap[p] = { plan: 0, real: 0 };
+    prodCostoMap[p].plan += d.costoPlan;
+    prodCostoMap[p].real += d.costoReal;
+
+    // Costo por Material
+    const matCostoKey = m || "Sin Nombre";
+    if (!matCostoMap[matCostoKey]) matCostoMap[matCostoKey] = { plan: 0, real: 0 };
+    matCostoMap[matCostoKey].plan += d.costoPlan;
+    matCostoMap[matCostoKey].real += d.costoReal;
+
+    // Estructura de Tabla Detalle
+    const tableKey = d.linea + '||' + p;
+    if (!tableMap[tableKey]) tableMap[tableKey] = { linea: d.linea, prod: p, plan: 0, real: 0, cp: 0, cr: 0 };
+    tableMap[tableKey].plan += d.plan;
+    tableMap[tableKey].real += d.real;
+    tableMap[tableKey].cp += d.costoPlan;
+    tableMap[tableKey].cr += d.costoReal;
+
+    // Detalle de Costos por Material
+    if (!matTableMap[matCostoKey]) matTableMap[matCostoKey] = { material: matCostoKey, planKG: 0, realKG: 0, cp: 0, cr: 0 };
+    matTableMap[matCostoKey].planKG += d.plan;
+    matTableMap[matCostoKey].realKG += d.real;
+    matTableMap[matCostoKey].cp += d.costoPlan;
+    matTableMap[matCostoKey].cr += d.costoReal;
+
+    // Mapeo estructurado para Orden de producción
+    if (d.orden) {
+      if (!ordenMap.has(d.orden)) {
+        ordenMap.set(d.orden, { orden: d.orden, linea: d.linea, prod: p, fecha: d.fecha, plan: 0, real: 0, cp: 0, cr: 0 });
+      }
+      const r = ordenMap.get(d.orden);
+      r.plan += d.plan; r.real += d.real; r.cp += d.costoPlan; r.cr += d.costoReal;
+      if (d.fecha && (!r.fecha || d.fecha < r.fecha)) r.fecha = d.fecha;
+    }
+  }
+
+  // --- RENDERS EJECUTADOS CON LOS MAPAS PRE-PROCESADOS ---
+
+  // 1. Scorecards
+  const varKG = totalReal - totalPlan;
+  const varKGpct = totalPlan ? varKG/totalPlan : 0;
+  const varCosto = crTotal - cpTotal;
+  const varCostoPct = cpTotal ? varCosto/cpTotal : 0;
+
+  document.getElementById('sc-plan').textContent = fmt(totalPlan)+' KG';
+  document.getElementById('sc-real').textContent = fmt(totalReal)+' KG';
+  document.getElementById('sc-var-kg').textContent = (varKG>=0?'+':'')+fmt(varKG)+' KG';
+  document.getElementById('sc-var-kg').className = 'card-value '+(varKG>0?'pos':'neg');
+  document.getElementById('sc-var-kg-pct').textContent = fmtPct(varKGpct)+' vs planeado';
+  document.getElementById('sc-var-kg-pct').className = varKG>0?'card-sub pos':'card-sub neg';
+  document.getElementById('card-var-kg-box').style.setProperty('border-top', `3px solid ${varKG>0?'var(--negative)':'var(--positive)'}`);
+  document.getElementById('sc-costo-plan').textContent = fmtCOP(cpTotal);
+  document.getElementById('sc-costo-real').textContent = fmtCOP(crTotal);
+  document.getElementById('sc-var-costo-val').textContent = fmtCostoExacto(varCosto);
+  document.getElementById('sc-var-costo-val').className = 'card-value '+(varCosto>0?'pos':'neg');
+  document.getElementById('sc-var-costo-pct').textContent = fmtPct(varCostoPct)+' vs presupuesto';
+  document.getElementById('sc-var-costo-pct').className = varCosto>0?'card-sub pos':'card-sub neg';
+  document.getElementById('card-var-costo-box').style.setProperty('border-top', `3px solid ${varCosto>0?'var(--negative)':'var(--positive)'}`);
+  document.getElementById('footer-info').textContent = `Dashboard · Variación de Materiales · ${len.toLocaleString('es-CO')} registros filtrados`;
+
+  // 2. Gráfico de Línea
+  destroyChart('linea');
+  const lineas = Object.keys(lineasMap).sort();
+  charts.linea = new Chart(document.getElementById('chart-linea').getContext('2d'),{
+    type:'bar',
+    data:{labels:lineas,datasets:[
+      {label:'Plan (KG)',data:lineas.map(l => lineasMap[l].plan),backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:6},
+      {label:'Real (KG)',data:lineas.map(l => lineasMap[l].real),backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:6}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},scales:{x:{grid:{color:'#252e45'}},y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)}}}}
+  });
+
+  // 3. Gráfico Producto KG
+  destroyChart('kgProducto');
+  const sortedProds = Object.keys(prodMap).sort((a,b) => prodMap[b].real - prodMap[a].real).slice(0, 15);
+  charts.kgProducto = new Chart(document.getElementById('chart-kg-producto').getContext('2d'),{
+    type:'bar',
+    data:{labels:sortedProds.map(l=>l.length>18?l.slice(0,18)+'…':l),datasets:[
+      {label:'Plan (KG)',data:sortedProds.map(p => prodMap[p].plan),backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:5},
+      {label:'Real (KG)',data:sortedProds.map(p => prodMap[p].real),backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},scales:{x:{grid:{color:'#252e45'},ticks:{font:{size:10},maxRotation:30,minRotation:20}},y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)+' KG'}}}}
+  });
+
+  // 4. Gráfico Variación Material
+  destroyChart('material');
+  const matData = Object.keys(matMap).map(m => ({ label: m.length>24?m.slice(0,24)+'…':m, pct: matMap[m].plan ? ((matMap[m].real-matMap[m].plan)/matMap[m].plan)*100 : 0 })).sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct)).slice(0,10);
+  charts.material = new Chart(document.getElementById('chart-material').getContext('2d'),{
+    type:'bar',
+    data:{labels:matData.map(d=>d.label),datasets:[{label:'Var %',data:matData.map(d=>d.pct),backgroundColor:matData.map(d=>d.pct>0?'rgba(255,82,82,.75)':'rgba(0,200,150,.75)'),borderColor:matData.map(d=>d.pct>0?COLORS.pos:COLORS.neg),borderWidth:1.5,borderRadius:5}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Variación: ${ctx.parsed.x>=0?'+':''}${ctx.parsed.x.toFixed(2)}%`}}},scales:{x:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false}}}}
+  });
+
+  // 5. Gráfico Tendencia Mensual
+  destroyChart('mes');
+  const meses = Object.keys(mesMap).sort((a,b)=>(mesOrder[a]||99)-(mesOrder[b]||99));
+  charts.mes = new Chart(document.getElementById('chart-mes').getContext('2d'),{
+    type:'line',
+    data:{labels:meses.map(m=>m.charAt(0).toUpperCase()+m.slice(1)),datasets:[
+      {label:'Var KG %',data:meses.map(m => mesMap[m].planKG ? ((mesMap[m].realKG - mesMap[m].planKG)/mesMap[m].planKG)*100 : 0),borderColor:COLORS.accent,backgroundColor:'rgba(0,229,195,.1)',tension:.4,fill:true,pointBackgroundColor:COLORS.accent,pointRadius:5},
+      {label:'Var Costo %',data:meses.map(m => mesMap[m].planCosto ? ((mesMap[m].realCosto - mesMap[m].planCosto)/mesMap[m].planCosto)*100 : 0),borderColor:COLORS.accent3,backgroundColor:'rgba(255,209,102,.08)',tension:.4,fill:false,pointBackgroundColor:COLORS.accent3,pointRadius:5,borderDash:[5,4]}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{usePointStyle:true}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y>=0?'+':''}${ctx.parsed.y.toFixed(2)}%`}},scales:{x:{grid:{color:'#252e45'}},y:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // 6. Costos Producto Barras
+  destroyChart('costosBarras');
+  const topCatProds = Object.keys(prodCostoMap).sort((a,b) => prodCostoMap[b].real - prodCostoMap[a].real).slice(0, 15);
+  charts.costosBarras = new Chart(document.getElementById('chart-costos-barras').getContext('2d'), {
+    type: 'bar',
+    data: {labels: topCatProds.map(l => l.length > 20 ? l.slice(0,20)+'…' : l), datasets: [
+      { label: 'Costo Plan ($)', data: topCatProds.map(cat => prodCostoMap[cat].plan), backgroundColor: 'rgba(255, 209, 102, 0.75)', borderColor: COLORS.accent3, borderWidth: 1.5, borderRadius: 4 },
+      { label: 'Costo Real ($)', data: topCatProds.map(cat => prodCostoMap[cat].real), backgroundColor: 'rgba(255, 107, 107, 0.75)', borderColor: COLORS.accent4, borderWidth: 1.5, borderRadius: 4 }
+    ]},
+    options: {responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } }, scales: { x: { grid: { color: '#252e45' }, ticks: { maxRotation: 30, minRotation: 30 } }, y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } } }}
+  });
+
+  // 7. Costos Material Barras
+  destroyChart('costosMaterial');
+  const topCatMats = Object.keys(matCostoMap).sort((a,b) => matCostoMap[b].real - matCostoMap[a].real).slice(0, 15);
+  charts.costosMaterial = new Chart(document.getElementById('chart-costos-material').getContext('2d'), {
+    type: 'bar',
+    data: {labels: topCatMats.map(l => l.length > 22 ? l.slice(0,22)+'…' : l), datasets: [
+      { label: 'Costo Plan ($)', data: topCatMats.map(cat => matCostoMap[cat].plan), backgroundColor: 'rgba(255, 209, 102, 0.75)', borderColor: COLORS.accent3, borderWidth: 1.5, borderRadius: 4 },
+      { label: 'Costo Real ($)', data: topCatMats.map(cat => matCostoMap[cat].real), backgroundColor: 'rgba(255, 107, 107, 0.75)', borderColor: COLORS.accent4, borderWidth: 1.5, borderRadius: 4 }
+    ]},
+    options: {responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } }, scales: { x: { grid: { color: '#252e45' }, ticks: { maxRotation: 30, minRotation: 30 } }, y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } } }}
+  });
+
+  // 8. Tabla Resumen Detalle
+  const rowsTable = Object.values(tableMap).map(r => ({ ...r, varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0, varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0 })).sort((a,b)=>Math.abs(b.varCoPct)-Math.abs(a.varCoPct));
+  document.getElementById('tabla-detalle').innerHTML = rowsTable.map(r => `
+    <tr>
+      <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea}</td>
+      <td>${r.prod||'—'}</td>
+      <td>${fmt(r.plan)} KG</td>
+      <td>${fmt(r.real)} KG</td>
+      <td><span style="color:${r.varKGpct>0?'var(--negative)':'var(--positive)'}">${r.varKGpct>=0?'+':''}${(r.varKGpct*100).toFixed(2)}%</span></td>
+      <td>${fmtCOP(r.cp)}</td>
+      <td>${fmtCOP(r.cr)}</td>
+      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
+      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
+    </tr>`).join('');
+
+  // 9. Tabla Costos Material
+  const rowsMat = Object.values(matTableMap).map(r => { const varCostoNeto = r.cr - r.cp; return { ...r, varKGpct: r.planKG ? (r.realKG - r.planKG) / r.planKG : 0, varCostoNeto: varCostoNeto, varCoPct: r.cp ? varCostoNeto / r.cp : 0 }; }).sort((a, b) => b.varCostoNeto - a.varCostoNeto);
+  document.getElementById('tabla-materiales-costo').innerHTML = rowsMat.map(r => `
+    <tr>
+      <td style="color:var(--accent3); font-family:DM Sans; font-size:12px; font-weight:700">${r.material}</td>
+      <td>${fmt(r.planKG)} KG</td>
+      <td>${fmt(r.realKG)} KG</td>
+      <td><span style="color:${r.varKGpct > 0 ? 'var(--negative)' : 'var(--positive)'}">${r.varKGpct >= 0 ? '+' : ''}${(r.varKGpct * 100).toFixed(2)}%</span></td>
+      <td>${fmtCOP(r.cp)}</td>
+      <td>${fmtCOP(r.cr)}</td>
+      <td style="font-weight:600; color:${r.varCostoNeto > 0 ? 'var(--negative)' : 'var(--positive)'}">${fmtCostoExacto(r.varCostoNeto)}</td>
+      <td><span class="pill ${r.varCoPct > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCoPct >= 0 ? '+' : ''}${(r.varCoPct * 100).toFixed(2)}%</span></td>
+      <td><span class="pill ${r.varCostoNeto > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCostoNeto > 0 ? '▲ Sobrecosto' : '▼ Ahorro'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
+
+  // 10. Preparación final de la Tabla Ordenamiento Paginada
+  ordenTableState.rows = Array.from(ordenMap.values()).map(r => ({ ...r, varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0, varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0 }));
+  ordenTableState.page = 1;
+  renderTablaOrden();
+}
+
+function ordenSort(col) {
+  if (ordenTableState.sortCol === col) {
+    ordenTableState.sortDir = ordenTableState.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    ordenTableState.sortCol = col;
+    ordenTableState.sortDir = 'desc';
+  }
+  ordenTableState.page = 1;
+  renderTablaOrden();
+}
+
+function renderTablaOrden() {
+  const search = (document.getElementById('orden-search').value || '').toLowerCase();
+  let rows = ordenTableState.rows.filter(r =>
+    !search ||
+    (r.orden  || '').toLowerCase().includes(search) ||
+    (r.linea  || '').toLowerCase().includes(search) ||
+    (r.prod   || '').toLowerCase().includes(search) ||
+    (r.fecha ? fmtFecha(r.fecha).toLowerCase().includes(search) : false)
+  );
+  
+  const { sortCol, sortDir } = ordenTableState;
+  rows.sort((a, b) => {
+    let va, vb;
+    if (sortCol === 'fecha') {
+      va = a.fecha ? a.fecha.getTime() : Infinity;
+      vb = b.fecha ? b.fecha.getTime() : Infinity;
+    } else {
+      va = a[sortCol]; vb = b[sortCol];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  
+  const total = rows.length;
+  const pageSize = ordenTableState.pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  ordenTableState.page = Math.min(ordenTableState.page, totalPages);
+  const start = (ordenTableState.page - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+  
+  document.getElementById('orden-page-info').textContent =
+    `${total === 0 ? 0 : start + 1}–${Math.min(start + pageSize, total)} de ${total.toLocaleString('es-CO')} órdenes`;
+  
+  document.getElementById('btn-prev-orden').disabled = ordenTableState.page <= 1;
+  document.getElementById('btn-next-orden').disabled = ordenTableState.page >= totalPages;
+  
+  document.querySelectorAll('#tabla-orden-table thead th.sortable').forEach(th => {
+    th.classList.remove('asc', 'desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir);
+  });
+  
+  document.getElementById('tabla-orden').innerHTML = pageRows.map(r => `
+    <tr>
+      <td style="color:var(--accent2);font-family:DM Sans;font-size:12px;font-weight:700;letter-spacing:.5px">${r.orden||'—'}</td>
+      <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea||'—'}</td>
+      <td>${r.prod||'—'}</td>
+      <td style="color:var(--text-muted);font-size:12px">${fmtFecha(r.fecha)}</td>
+      <td>${fmt(r.plan)} KG</td>
+      <td>${fmt(r.real)} KG</td>
+      <td><span style="color:${r.varKGpct>0?'var(--negative)':'var(--positive)'}">${r.varKGpct>=0?'+':''}${(r.varKGpct*100).toFixed(2)}%</span></td>
+      <td>${fmtCOP(r.cp)}</td>
+      <td>${fmtCOP(r.cr)}</td>
+      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
+      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
+}
+</script>
+
+
+</body>
+</html>
+
