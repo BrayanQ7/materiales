@@ -364,7 +364,6 @@ footer p{font-size:12px;color:var(--text-muted)}
     </p>
   </div>
 </div>
-
 <script>
 const SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSlwwBEM71qFAYSUUnvGpi8z6WiTu0q9Eu9G6xQTVhHYEOpTS4_tt-o4H9iNjgLbTQ0eIJPmVBQdbug/pub?gid=2121479416&single=true&output=csv";
 const OUTLIERS_MATERIALS = [
@@ -387,18 +386,15 @@ const COLORS = {
   accent:'#00e5c3', accent2:'#6c9cff', accent3:'#ffd166',
   accent4:'#ff6b6b', pos:'#ff5252', neg:'#00c896', muted:'#7a8aaa'
 };
-
 Chart.defaults.color = '#7a8aaa';
 Chart.defaults.borderColor = '#252e45';
 Chart.defaults.font.family = 'DM Sans';
-
-window.addEventListener('DOMContentLoaded', () => cargarDesdeSheets(false));
+window.addEventListener('DOMContentLoaded', cargarDesdeSheets);
 window.addEventListener('click', function(e) {
   if (!e.target.closest('.custom-dropdown')) {
     document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('active'));
   }
 });
-
 function toggleDropdown(id) {
   const el = document.getElementById(id);
   const wasActive = el.classList.contains('active');
@@ -408,7 +404,6 @@ function toggleDropdown(id) {
     setTimeout(() => { const s = el.querySelector('.dropdown-search'); if(s) s.focus(); }, 50);
   }
 }
-
 function toggleOutliersSwitch(e) {
   if(e.target.tagName !== 'INPUT') {
     const cb = document.getElementById('switch-outliers');
@@ -416,15 +411,11 @@ function toggleOutliersSwitch(e) {
     applyFilters();
   }
 }
-
-// Optimización de red: Solo añade Cache Buster si el usuario da clic explícito en "Sincronizar"
-function cargarDesdeSheets(forzarSincronizacion = false) {
+function cargarDesdeSheets() {
   document.getElementById('loading-overlay').style.display = 'flex';
   document.getElementById('error-msg').style.display = 'none';
-  
-  const url = forzarSincronizacion ? SHEETS_CSV_URL + "&t=" + new Date().getTime() : SHEETS_CSV_URL;
-  
-  fetch(url)
+  const urlConCacheBuster = SHEETS_CSV_URL + "&t=" + new Date().getTime();
+  fetch(urlConCacheBuster)
     .then(response => {
       if (!response.ok) throw new Error('No se pudo conectar con el servidor de Google.');
       return response.text();
@@ -432,24 +423,18 @@ function cargarDesdeSheets(forzarSincronizacion = false) {
     .then(csvText => {
       Papa.parse(csvText, {
         header: true,
-        skipEmptyLines: 'greedy',
-        fastMode: true,
+        skipEmptyLines: true,
         complete: function(results) {
           try {
             const mapped = parseRows(results.data);
             if (mapped.length === 0) throw new Error('No se detectaron datos válidos.');
-            
-            Object.keys(charts).forEach(k => { if(charts[k]) charts[k].destroy(); });
-            charts = {};
-            
+            Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
             rawData = mapped;
             filteredData = [...rawData];
-            
             document.getElementById('loading-overlay').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
-            
             resetSelectionsObject();
-            populateFilters(true); // Inicialización forzada
+            populateFilters();
             applyFilters();
           } catch(err) { manejarError(err.message); }
         }
@@ -457,17 +442,12 @@ function cargarDesdeSheets(forzarSincronizacion = false) {
     })
     .catch(err => manejarError(err.message));
 }
-
-// Vinculación directa al botón HTML
-document.querySelector(".btn-refresh").setAttribute("onclick", "cargarDesdeSheets(true)");
-
 function manejarError(msg) {
   document.getElementById('loading-overlay').style.display = 'none';
   const errorDiv = document.getElementById('error-msg');
   errorDiv.textContent = '⚠️ Error actualizando base de datos cloud: ' + msg;
   errorDiv.style.display = 'block';
 }
-
 function parseNum(val) {
   if (val === undefined || val === null) return 0;
   let s = String(val).trim().replace(/\s/g, '').replace(/\$/g, '').replace(/COP/gi, '');
@@ -476,9 +456,7 @@ function parseNum(val) {
   const res = parseFloat(s);
   return isNaN(res) ? 0 : res;
 }
-
 function parseStr(val) { return String(val || '').trim(); }
-
 function col(row, ...names) {
   for (const n of names) {
     const k = Object.keys(row).find(k => k.trim().toLowerCase() === n.toLowerCase());
@@ -486,7 +464,6 @@ function col(row, ...names) {
   }
   return '';
 }
-
 function parseFecha(val) {
   const s = parseStr(val);
   if (!s) return null;
@@ -497,12 +474,10 @@ function parseFecha(val) {
   const d = new Date(s);
   return isNaN(d) ? null : d;
 }
-
 function fmtFecha(fecha) {
   if (!fecha) return '—';
   return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
-
 function parseRows(data) {
   return data.map(row => ({
     orden:        parseStr(col(row,'Orden')),
@@ -519,33 +494,12 @@ function parseRows(data) {
     costoReal:    parseNum(col(row,'Costo_Real','Costo Real','CostoReal')),
   })).filter(d => d.linea && (d.plan !== 0 || d.real !== 0 || d.costoPlan !== 0 || d.costoReal !== 0));
 }
-
 function resetSelectionsObject() {
   selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'] };
   document.getElementById('switch-outliers').checked = true;
 }
-
-// populateFilters optimizado con Sets para evitar O(N^2) y renderizado controlado
-function populateFilters(forceRebuild = false) {
-  if (!forceRebuild) return; // Rompe el bucle infinito destructivo con applyFilters
-
+function populateFilters() {
   const excludeOutliers = document.getElementById('switch-outliers').checked;
-  const uniqueSets = { linea: new Set(), mes: new Set(), tipo: new Set(), producto: new Set(), material: new Set() };
-
-  // Una sola pasada rápida para recolectar datos únicos
-  const len = rawData.length;
-  for (let i = 0; i < len; i++) {
-    const d = rawData[i];
-    const matName = d.materialDesc || d.material;
-    if (excludeOutliers && OUTLIERS_MATERIALS.includes(matName.toLowerCase())) continue;
-
-    uniqueSets.linea.add(d.linea);
-    uniqueSets.mes.add(d.mes);
-    uniqueSets.tipo.add(d.tipo);
-    uniqueSets.producto.add(d.producto);
-    uniqueSets.material.add(matName);
-  }
-
   const filterSpecs = [
     { dropdownId: 'd-linea', menuId: 'm-linea', key: 'linea', textAll: 'Todas las líneas', sortFn: null },
     { dropdownId: 'd-mes', menuId: 'm-mes', key: 'mes', textAll: 'Todos los meses', sortFn: (a,b) => (mesOrder[a]||99) - (mesOrder[b]||99) },
@@ -553,71 +507,66 @@ function populateFilters(forceRebuild = false) {
     { dropdownId: 'd-producto', menuId: 'm-producto', key: 'producto', textAll: 'Todos los productos', sortFn: null },
     { dropdownId: 'd-material', menuId: 'm-material', key: 'material', textAll: 'Todos los materiales', sortFn: null }
   ];
-
   filterSpecs.forEach(spec => {
     const menu = document.getElementById(spec.menuId);
     const dropdownEl = document.getElementById(spec.dropdownId);
     const trigger = dropdownEl.querySelector('.dropdown-trigger');
-    
-    let uniqueItems = Array.from(uniqueSets[spec.key]).filter(Boolean);
-    if (spec.sortFn) uniqueItems.sort(spec.sortFn); else uniqueItems.sort();
-
+    const validDataForThisFilter = rawData.filter(d => {
+      if (excludeOutliers && OUTLIERS_MATERIALS.includes((d.materialDesc || d.material).toLowerCase())) return false;
+      const matchLinea    = spec.key === 'linea'    || selections.linea.includes('all')    || selections.linea.includes(d.linea);
+      const matchMes      = spec.key === 'mes'      || selections.mes.includes('all')      || selections.mes.includes(d.mes);
+      const matchTipo     = spec.key === 'tipo'     || selections.tipo.includes('all')     || selections.tipo.includes(d.tipo);
+      const matchProducto = spec.key === 'producto' || selections.producto.includes('all') || selections.producto.includes(d.producto);
+      const matchMaterial = spec.key === 'material' || selections.material.includes('all') || selections.material.includes(d.materialDesc || d.material);
+      return matchLinea && matchMes && matchTipo && matchProducto && matchMaterial;
+    });
+    let uniqueItems = [...new Set(validDataForThisFilter.map(d => spec.key === 'material' ? (d.materialDesc || d.material) : d[spec.key]))].filter(Boolean);
+    if (spec.sortFn) uniqueItems.sort(spec.sortFn);
+    else uniqueItems.sort();
+    let currentKeys = selections[spec.key];
+    const existingSearch = menu.querySelector('.dropdown-search');
+    const searchTerm = existingSearch ? existingSearch.value.toLowerCase() : '';
     menu.innerHTML = '';
     const searchWrap = document.createElement('div');
     searchWrap.className = 'dropdown-search-wrap';
-    searchWrap.innerHTML = `<input class="dropdown-search" type="text" placeholder="🔍 Buscar…">`;
+    searchWrap.innerHTML = `<input class="dropdown-search" type="text" placeholder="🔍 Buscar…" value="${searchTerm.replace(/"/g,'&quot;')}">`;
     searchWrap.onclick = e => e.stopPropagation();
     menu.appendChild(searchWrap);
-
     const itemsWrap = document.createElement('div');
     itemsWrap.className = 'dropdown-items-wrap';
     menu.appendChild(itemsWrap);
-
-    const currentKeys = selections[spec.key];
     const isAllChecked = currentKeys.includes('all');
-
     function buildItems(filter) {
-      let htmlBuilder = [];
-      const isAllVisible = !filter || spec.textAll.toLowerCase().includes(filter);
-      
-      if (isAllVisible) {
-        htmlBuilder.push(`<div class="dropdown-item all-option" data-val="all"><input type="checkbox" value="all" ${isAllChecked ? 'checked' : ''}> <span>${spec.textAll}</span></div>`);
-      }
-
-      for(let i=0; i<uniqueItems.length; i++) {
-        const val = uniqueItems[i];
+      itemsWrap.innerHTML = '';
+      const allDiv = document.createElement('div');
+      allDiv.className = 'dropdown-item all-option';
+      allDiv.innerHTML = `<input type="checkbox" value="all" ${isAllChecked ? 'checked' : ''}> <span>${spec.textAll}</span>`;
+      allDiv.onclick = (e) => handleCheckboxChange(e, spec.key, 'all');
+      if (!filter || spec.textAll.toLowerCase().includes(filter)) itemsWrap.appendChild(allDiv);
+      uniqueItems.forEach(val => {
         const displayLabel = spec.key === 'mes' ? val.charAt(0).toUpperCase() + val.slice(1) : val;
-        if (filter && !displayLabel.toLowerCase().includes(filter)) continue;
-        
+        if (filter && !displayLabel.toLowerCase().includes(filter)) return;
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'dropdown-item';
         const isChecked = !isAllChecked && currentKeys.includes(val);
-        htmlBuilder.push(`<div class="dropdown-item" data-val="${val}"><input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''}> <span>${displayLabel}</span></div>`);
-      }
-      
-      itemsWrap.innerHTML = htmlBuilder.join('');
-
-      // Delegación de eventos eficiente
-      itemsWrap.querySelectorAll('.dropdown-item').forEach(el => {
-        el.onclick = (e) => handleCheckboxChange(e, spec.key, el.dataset.val);
+        itemDiv.innerHTML = `<input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''}> <span>${displayLabel}</span>`;
+        itemDiv.onclick = (e) => handleCheckboxChange(e, spec.key, val);
+        itemsWrap.appendChild(itemDiv);
       });
     }
-
-    buildItems('');
-    
+    buildItems(searchTerm);
     searchWrap.querySelector('.dropdown-search').addEventListener('input', function() {
       buildItems(this.value.toLowerCase());
     });
-
     if (isAllChecked || currentKeys.length === 0) trigger.textContent = spec.textAll;
     else if (currentKeys.length === 1) trigger.textContent = spec.key === 'mes' ? currentKeys[0].charAt(0).toUpperCase() + currentKeys[0].slice(1) : currentKeys[0];
     else trigger.textContent = `${currentKeys.length} seleccionados`;
   });
 }
-
 function handleCheckboxChange(e, key, value) {
   e.stopPropagation();
   const checkbox = e.currentTarget.querySelector('input');
   if(e.target.tagName !== 'INPUT') checkbox.checked = !checkbox.checked;
-  
   let currentValues = selections[key];
   if (value === 'all') {
     selections[key] = ['all'];
@@ -630,44 +579,25 @@ function handleCheckboxChange(e, key, value) {
   }
   applyFilters();
 }
-
-// Búsqueda Ultra-Rápida indexada en Sets O(1)
 function applyFilters() {
   const excludeOutliers = document.getElementById('switch-outliers').checked;
-  
-  const setLinea = new Set(selections.linea);
-  const setMes = new Set(selections.mes);
-  const setTipo = new Set(selections.tipo);
-  const setProducto = new Set(selections.producto);
-  const setMaterial = new Set(selections.material);
-
-  const hasAllLinea = setLinea.has('all');
-  const hasAllMes = setMes.has('all');
-  const hasAllTipo = setTipo.has('all');
-  const hasAllProducto = setProducto.has('all');
-  const hasAllMaterial = setMaterial.has('all');
-
   filteredData = rawData.filter(d => {
-    const matName = d.materialDesc || d.material;
-    if (excludeOutliers && OUTLIERS_MATERIALS.includes(matName.toLowerCase())) return false;
-    
-    return (hasAllLinea || setLinea.has(d.linea)) &&
-           (hasAllMes || setMes.has(d.mes)) &&
-           (hasAllTipo || setTipo.has(d.tipo)) &&
-           (hasAllProducto || setProducto.has(d.producto)) &&
-           (hasAllMaterial || setMaterial.has(matName));
+    if (excludeOutliers && OUTLIERS_MATERIALS.includes((d.materialDesc || d.material).toLowerCase())) return false;
+    return (selections.linea.includes('all')    || selections.linea.includes(d.linea)) &&
+           (selections.mes.includes('all')      || selections.mes.includes(d.mes)) &&
+           (selections.tipo.includes('all')     || selections.tipo.includes(d.tipo)) &&
+           (selections.producto.includes('all') || selections.producto.includes(d.producto)) &&
+           (selections.material.includes('all') || selections.material.includes(d.materialDesc || d.material));
   });
-
+  populateFilters();
   renderAll();
 }
-
 function resetFilters() {
   resetSelectionsObject();
   filteredData = [...rawData];
-  populateFilters(true);
+  populateFilters();
   renderAll();
 }
-
 function fmt(n) { return Math.round(n).toLocaleString('es-CO'); }
 function fmtCOP(n) {
   if (n < 0) return '-$' + Math.abs(Math.round(n)).toLocaleString('es-CO');
@@ -680,93 +610,16 @@ function fmtCostoExacto(n) {
 function fmtPct(n) { return (n>=0?'+':'')+(n*100).toFixed(2)+'%'; }
 function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
 
-// PROCESAMIENTO GLOBAL EN UNA SOLA PASADA (Single-Pass Aggregation)
-// Reducimos el coste computacional general de O(8N) a solo O(1N)
-function renderAll() {
-  let totalPlan = 0, totalReal = 0, cpTotal = 0, crTotal = 0;
+function renderScorecards() {
+  const totalPlan  = filteredData.reduce((s,d)=>s+d.plan,0);
+  const totalReal  = filteredData.reduce((s,d)=>s+d.real,0);
+  const varKG      = totalReal - totalPlan;
+  const varKGpct   = totalPlan ? varKG/totalPlan : 0;
+  const cpTotal    = filteredData.reduce((s,d)=>s+d.costoPlan,0);
+  const crTotal    = filteredData.reduce((s,d)=>s+d.costoReal,0);
+  const varCosto   = crTotal - cpTotal;
+  const varCostoPct= cpTotal ? varCosto/cpTotal : 0;
   
-  const lineasMap = {}, prodMap = {}, matMap = {}, mesMap = {}, prodCostoMap = {}, matCostoMap = {}, tableMap = {}, matTableMap = {};
-  const ordenMap = new Map();
-
-  const len = filteredData.length;
-  for(let i=0; i<len; i++) {
-    const d = filteredData[i];
-    
-    // Scorecards acumuladores globales
-    totalPlan += d.plan;
-    totalReal += d.real;
-    cpTotal += d.costoPlan;
-    crTotal += d.costoReal;
-
-    // Agrupación por Línea
-    if (!lineasMap[d.linea]) lineasMap[d.linea] = { plan: 0, real: 0 };
-    lineasMap[d.linea].plan += d.plan;
-    lineasMap[d.linea].real += d.real;
-
-    // Agrupación por Producto (KG)
-    const p = d.producto || 'Sin Nombre';
-    if (!prodMap[p]) prodMap[p] = { plan: 0, real: 0 };
-    prodMap[p].plan += d.plan;
-    prodMap[p].real += d.real;
-
-    // Agrupación por Material (Variaciones)
-    const m = d.materialDesc || d.material;
-    if (!matMap[m]) matMap[m] = { plan: 0, real: 0 };
-    matMap[m].plan += d.plan;
-    matMap[m].real += d.real;
-
-    // Tendencia Mensual
-    if (!mesMap[d.mes]) mesMap[d.mes] = { planKG: 0, realKG: 0, planCosto: 0, realCosto: 0 };
-    mesMap[d.mes].planKG += d.plan;
-    mesMap[d.mes].realKG += d.real;
-    mesMap[d.mes].planCosto += d.costoPlan;
-    mesMap[d.mes].realCosto += d.costoReal;
-
-    // Costo por Producto
-    if (!prodCostoMap[p]) prodCostoMap[p] = { plan: 0, real: 0 };
-    prodCostoMap[p].plan += d.costoPlan;
-    prodCostoMap[p].real += d.costoReal;
-
-    // Costo por Material
-    const matCostoKey = m || "Sin Nombre";
-    if (!matCostoMap[matCostoKey]) matCostoMap[matCostoKey] = { plan: 0, real: 0 };
-    matCostoMap[matCostoKey].plan += d.costoPlan;
-    matCostoMap[matCostoKey].real += d.costoReal;
-
-    // Estructura de Tabla Detalle
-    const tableKey = d.linea + '||' + p;
-    if (!tableMap[tableKey]) tableMap[tableKey] = { linea: d.linea, prod: p, plan: 0, real: 0, cp: 0, cr: 0 };
-    tableMap[tableKey].plan += d.plan;
-    tableMap[tableKey].real += d.real;
-    tableMap[tableKey].cp += d.costoPlan;
-    tableMap[tableKey].cr += d.costoReal;
-
-    // Detalle de Costos por Material
-    if (!matTableMap[matCostoKey]) matTableMap[matCostoKey] = { material: matCostoKey, planKG: 0, realKG: 0, cp: 0, cr: 0 };
-    matTableMap[matCostoKey].planKG += d.plan;
-    matTableMap[matCostoKey].realKG += d.real;
-    matTableMap[matCostoKey].cp += d.costoPlan;
-    matTableMap[matCostoKey].cr += d.costoReal;
-
-    // Mapeo estructurado para Orden de producción
-    if (d.orden) {
-      if (!ordenMap.has(d.orden)) {
-        ordenMap.set(d.orden, { orden: d.orden, linea: d.linea, prod: p, fecha: d.fecha, plan: 0, real: 0, cp: 0, cr: 0 });
-      }
-      const r = ordenMap.get(d.orden);
-      r.plan += d.plan; r.real += d.real; r.cp += d.costoPlan; r.cr += d.costoReal;
-      if (d.fecha && (!r.fecha || d.fecha < r.fecha)) r.fecha = d.fecha;
-    }
-  }
-
-  // --- RENDERS EJECUTADOS CON LOS MAPAS PRE-PROCESADOS ---
-
-  // 1. Scorecards
-  const varKG = totalReal - totalPlan;
-  const varKGpct = totalPlan ? varKG/totalPlan : 0;
-  const varCosto = crTotal - cpTotal;
-  const varCostoPct = cpTotal ? varCosto/cpTotal : 0;
-
   document.getElementById('sc-plan').textContent = fmt(totalPlan)+' KG';
   document.getElementById('sc-real').textContent = fmt(totalReal)+' KG';
   document.getElementById('sc-var-kg').textContent = (varKG>=0?'+':'')+fmt(varKG)+' KG';
@@ -781,80 +634,215 @@ function renderAll() {
   document.getElementById('sc-var-costo-pct').textContent = fmtPct(varCostoPct)+' vs presupuesto';
   document.getElementById('sc-var-costo-pct').className = varCosto>0?'card-sub pos':'card-sub neg';
   document.getElementById('card-var-costo-box').style.setProperty('border-top', `3px solid ${varCosto>0?'var(--negative)':'var(--positive)'}`);
-  document.getElementById('footer-info').textContent = `Dashboard · Variación de Materiales · ${len.toLocaleString('es-CO')} registros filtrados`;
+  document.getElementById('footer-info').textContent = `Dashboard · Variación de Materiales · ${filteredData.length.toLocaleString('es-CO')} registros filtrados`;
+}
 
-  // 2. Gráfico de Línea
+function renderChartLinea() {
   destroyChart('linea');
+  const lineasMap = {};
+  filteredData.forEach(d => {
+    if (!lineasMap[d.linea]) lineasMap[d.linea] = { plan: 0, real: 0 };
+    lineasMap[d.linea].plan += d.plan;
+    lineasMap[d.linea].real += d.real;
+  });
   const lineas = Object.keys(lineasMap).sort();
+  const dataPlan = lineas.map(l => lineasMap[l].plan);
+  const dataReal = lineas.map(l => lineasMap[l].real);
+
   charts.linea = new Chart(document.getElementById('chart-linea').getContext('2d'),{
     type:'bar',
     data:{labels:lineas,datasets:[
-      {label:'Plan (KG)',data:lineas.map(l => lineasMap[l].plan),backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:6},
-      {label:'Real (KG)',data:lineas.map(l => lineasMap[l].real),backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:6}
+      {label:'Plan (KG)',data:dataPlan,backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:6},
+      {label:'Real (KG)',data:dataReal,backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:6}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},scales:{x:{grid:{color:'#252e45'}},y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)}}}}
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},
+      scales:{x:{grid:{color:'#252e45'},ticks:{font:{family:'DM Sans',size:11}}},y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)}}}}
   });
+}
 
-  // 3. Gráfico Producto KG
+function renderChartKgProducto() {
   destroyChart('kgProducto');
+  const prodMap = {};
+  filteredData.forEach(d => {
+    const p = d.producto || 'Sin Nombre';
+    if (!prodMap[p]) prodMap[p] = { plan: 0, real: 0 };
+    prodMap[p].plan += d.plan;
+    prodMap[p].real += d.real;
+  });
+  
   const sortedProds = Object.keys(prodMap).sort((a,b) => prodMap[b].real - prodMap[a].real).slice(0, 15);
+  const dataPlan = sortedProds.map(p => prodMap[p].plan);
+  const dataReal = sortedProds.map(p => prodMap[p].real);
+  const labelsCortas = sortedProds.map(l=>l.length>18?l.slice(0,18)+'…':l);
+
   charts.kgProducto = new Chart(document.getElementById('chart-kg-producto').getContext('2d'),{
     type:'bar',
-    data:{labels:sortedProds.map(l=>l.length>18?l.slice(0,18)+'…':l),datasets:[
-      {label:'Plan (KG)',data:sortedProds.map(p => prodMap[p].plan),backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:5},
-      {label:'Real (KG)',data:sortedProds.map(p => prodMap[p].real),backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:5}
+    data:{labels:labelsCortas,datasets:[
+      {label:'Plan (KG)',data:dataPlan,backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:5},
+      {label:'Real (KG)',data:dataReal,backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:5}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},scales:{x:{grid:{color:'#252e45'},ticks:{font:{size:10},maxRotation:30,minRotation:20}},y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)+' KG'}}}}
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},
+      scales:{
+        x:{grid:{color:'#252e45'},ticks:{font:{family:'DM Sans',size:10},maxRotation:30,minRotation:20}},
+        y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)+' KG',font:{size:10}}}
+      }
+    }
+  });
+}
+
+function renderChartMaterial() {
+  destroyChart('material');
+  const matMap = {};
+  filteredData.forEach(d => {
+    const m = d.materialDesc || d.material;
+    if (!matMap[m]) matMap[m] = { plan: 0, real: 0 };
+    matMap[m].plan += d.plan;
+    matMap[m].real += d.real;
   });
 
-  // 4. Gráfico Variación Material
-  destroyChart('material');
-  const matData = Object.keys(matMap).map(m => ({ label: m.length>24?m.slice(0,24)+'…':m, pct: matMap[m].plan ? ((matMap[m].real-matMap[m].plan)/matMap[m].plan)*100 : 0 })).sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct)).slice(0,10);
+  const matData = Object.keys(matMap).map(m => {
+    const plan = matMap[m].plan;
+    const real = matMap[m].real;
+    return { label: m.length>24?m.slice(0,24)+'…':m, pct: plan ? ((real-plan)/plan)*100 : 0 };
+  });
+  
+  matData.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
+  const top = matData.slice(0,10);
+
   charts.material = new Chart(document.getElementById('chart-material').getContext('2d'),{
     type:'bar',
-    data:{labels:matData.map(d=>d.label),datasets:[{label:'Var %',data:matData.map(d=>d.pct),backgroundColor:matData.map(d=>d.pct>0?'rgba(255,82,82,.75)':'rgba(0,200,150,.75)'),borderColor:matData.map(d=>d.pct>0?COLORS.pos:COLORS.neg),borderWidth:1.5,borderRadius:5}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Variación: ${ctx.parsed.x>=0?'+':''}${ctx.parsed.x.toFixed(2)}%`}}},scales:{x:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false}}}}
+    data:{labels:top.map(d=>d.label),datasets:[{label:'Var %',data:top.map(d=>d.pct),
+      backgroundColor:top.map(d=>d.pct>0?'rgba(255,82,82,.75)':'rgba(0,200,150,.75)'),
+      borderColor:top.map(d=>d.pct>0?COLORS.pos:COLORS.neg),borderWidth:1.5,borderRadius:5}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Variación: ${ctx.parsed.x>=0?'+':''}${ctx.parsed.x.toFixed(2)}%`}}},
+      scales:{x:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderChartMes() {
+  destroyChart('mes');
+  const mesMap = {};
+  filteredData.forEach(d => {
+    if (!mesMap[d.mes]) mesMap[d.mes] = { planKG: 0, realKG: 0, planCosto: 0, realCosto: 0 };
+    mesMap[d.mes].planKG += d.plan;
+    mesMap[d.mes].realKG += d.real;
+    mesMap[d.mes].planCosto += d.costoPlan;
+    mesMap[d.mes].realCosto += d.costoReal;
   });
 
-  // 5. Gráfico Tendencia Mensual
-  destroyChart('mes');
   const meses = Object.keys(mesMap).sort((a,b)=>(mesOrder[a]||99)-(mesOrder[b]||99));
+  const varPct = meses.map(m => mesMap[m].planKG ? ((mesMap[m].realKG - mesMap[m].planKG)/mesMap[m].planKG)*100 : 0);
+  const varCostoPct = meses.map(m => mesMap[m].planCosto ? ((mesMap[m].realCosto - mesMap[m].planCosto)/mesMap[m].planCosto)*100 : 0);
+
   charts.mes = new Chart(document.getElementById('chart-mes').getContext('2d'),{
     type:'line',
     data:{labels:meses.map(m=>m.charAt(0).toUpperCase()+m.slice(1)),datasets:[
-      {label:'Var KG %',data:meses.map(m => mesMap[m].planKG ? ((mesMap[m].realKG - mesMap[m].planKG)/mesMap[m].planKG)*100 : 0),borderColor:COLORS.accent,backgroundColor:'rgba(0,229,195,.1)',tension:.4,fill:true,pointBackgroundColor:COLORS.accent,pointRadius:5},
-      {label:'Var Costo %',data:meses.map(m => mesMap[m].planCosto ? ((mesMap[m].realCosto - mesMap[m].planCosto)/mesMap[m].planCosto)*100 : 0),borderColor:COLORS.accent3,backgroundColor:'rgba(255,209,102,.08)',tension:.4,fill:false,pointBackgroundColor:COLORS.accent3,pointRadius:5,borderDash:[5,4]}
+      {label:'Var KG %',data:varPct,borderColor:COLORS.accent,backgroundColor:'rgba(0,229,195,.1)',tension:.4,fill:true,pointBackgroundColor:COLORS.accent,pointRadius:5},
+      {label:'Var Costo %',data:varCostoPct,borderColor:COLORS.accent3,backgroundColor:'rgba(255,209,102,.08)',tension:.4,fill:false,pointBackgroundColor:COLORS.accent3,pointRadius:5,borderDash:[5,4]}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{usePointStyle:true}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y>=0?'+':''}${ctx.parsed.y.toFixed(2)}%`}},scales:{x:{grid:{color:'#252e45'}},y:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}}}}
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{usePointStyle:true,font:{family:'DM Sans',size:11}}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y>=0?'+':''}${ctx.parsed.y.toFixed(2)}%`}}},
+      scales:{x:{grid:{color:'#252e45'}},y:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}}}}
+  });
+}
+
+function renderChartCostosBarras() {
+  destroyChart('costosBarras');
+  const prodCostoMap = {};
+  filteredData.forEach(d => {
+    const p = d.producto || "Sin Nombre";
+    if (!prodCostoMap[p]) prodCostoMap[p] = { plan: 0, real: 0 };
+    prodCostoMap[p].plan += d.costoPlan;
+    prodCostoMap[p].real += d.costoReal;
   });
 
-  // 6. Costos Producto Barras
-  destroyChart('costosBarras');
-  const topCatProds = Object.keys(prodCostoMap).sort((a,b) => prodCostoMap[b].real - prodCostoMap[a].real).slice(0, 15);
+  const topCategories = Object.keys(prodCostoMap).sort((a,b) => prodCostoMap[b].real - prodCostoMap[a].real).slice(0, 15);
+  const dataPlan = topCategories.map(cat => prodCostoMap[cat].plan);
+  const dataReal = topCategories.map(cat => prodCostoMap[cat].real);
+  const labelsCortas = topCategories.map(l => l.length > 20 ? l.slice(0,20)+'…' : l);
+
   charts.costosBarras = new Chart(document.getElementById('chart-costos-barras').getContext('2d'), {
     type: 'bar',
-    data: {labels: topCatProds.map(l => l.length > 20 ? l.slice(0,20)+'…' : l), datasets: [
-      { label: 'Costo Plan ($)', data: topCatProds.map(cat => prodCostoMap[cat].plan), backgroundColor: 'rgba(255, 209, 102, 0.75)', borderColor: COLORS.accent3, borderWidth: 1.5, borderRadius: 4 },
-      { label: 'Costo Real ($)', data: topCatProds.map(cat => prodCostoMap[cat].real), backgroundColor: 'rgba(255, 107, 107, 0.75)', borderColor: COLORS.accent4, borderWidth: 1.5, borderRadius: 4 }
-    ]},
-    options: {responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } }, scales: { x: { grid: { color: '#252e45' }, ticks: { maxRotation: 30, minRotation: 30 } }, y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } } }}
+    data: {
+      labels: labelsCortas,
+      datasets: [
+        { label: 'Costo Plan ($)', data: dataPlan, backgroundColor: 'rgba(255, 209, 102, 0.75)', borderColor: COLORS.accent3, borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Costo Real ($)', data: dataReal, backgroundColor: 'rgba(255, 107, 107, 0.75)', borderColor: COLORS.accent4, borderWidth: 1.5, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } },
+      scales: {
+        x: { grid: { color: '#252e45' }, ticks: { font: { size: 10 }, maxRotation: 30, minRotation: 30 } },
+        y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } }
+      }
+    }
+  });
+}
+
+function renderChartCostosMaterial() {
+  destroyChart('costosMaterial');
+  const matCostoMap = {};
+  filteredData.forEach(d => {
+    const m = (d.materialDesc || d.material) || "Sin Nombre";
+    if (!matCostoMap[m]) matCostoMap[m] = { plan: 0, real: 0 };
+    matCostoMap[m].plan += d.costoPlan;
+    matCostoMap[m].real += d.costoReal;
   });
 
-  // 7. Costos Material Barras
-  destroyChart('costosMaterial');
-  const topCatMats = Object.keys(matCostoMap).sort((a,b) => matCostoMap[b].real - matCostoMap[a].real).slice(0, 15);
+  const topCategories = Object.keys(matCostoMap).sort((a,b) => matCostoMap[b].real - matCostoMap[a].real).slice(0, 15);
+  const dataPlan = topCategories.map(cat => matCostoMap[cat].plan);
+  const dataReal = topCategories.map(cat => matCostoMap[cat].real);
+  const labelsCortas = topCategories.map(l => l.length > 22 ? l.slice(0,22)+'…' : l);
+
   charts.costosMaterial = new Chart(document.getElementById('chart-costos-material').getContext('2d'), {
     type: 'bar',
-    data: {labels: topCatMats.map(l => l.length > 22 ? l.slice(0,22)+'…' : l), datasets: [
-      { label: 'Costo Plan ($)', data: topCatMats.map(cat => matCostoMap[cat].plan), backgroundColor: 'rgba(255, 209, 102, 0.75)', borderColor: COLORS.accent3, borderWidth: 1.5, borderRadius: 4 },
-      { label: 'Costo Real ($)', data: topCatMats.map(cat => matCostoMap[cat].real), backgroundColor: 'rgba(255, 107, 107, 0.75)', borderColor: COLORS.accent4, borderWidth: 1.5, borderRadius: 4 }
-    ]},
-    options: {responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } }, scales: { x: { grid: { color: '#252e45' }, ticks: { maxRotation: 30, minRotation: 30 } }, y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } } }}
+    data: {
+      labels: labelsCortas,
+      datasets: [
+        { label: 'Costo Plan ($)', data: dataPlan, backgroundColor: 'rgba(255, 209, 102, 0.75)', borderColor: COLORS.accent3, borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Costo Real ($)', data: dataReal, backgroundColor: 'rgba(255, 107, 107, 0.75)', borderColor: COLORS.accent4, borderWidth: 1.5, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } },
+      scales: {
+        x: { grid: { color: '#252e45' }, ticks: { font: { size: 10 }, maxRotation: 30, minRotation: 30 } },
+        y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } }
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const tableMap = {};
+  filteredData.forEach(d => {
+    const key = d.linea + '||' + d.producto;
+    if (!tableMap[key]) {
+      tableMap[key] = { linea: d.linea, prod: d.producto, plan: 0, real: 0, cp: 0, cr: 0 };
+    }
+    tableMap[key].plan += d.plan;
+    tableMap[key].real += d.real;
+    tableMap[key].cp += d.costoPlan;
+    tableMap[key].cr += d.costoReal;
   });
 
-  // 8. Tabla Resumen Detalle
-  const rowsTable = Object.values(tableMap).map(r => ({ ...r, varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0, varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0 })).sort((a,b)=>Math.abs(b.varCoPct)-Math.abs(a.varCoPct));
-  document.getElementById('tabla-detalle').innerHTML = rowsTable.map(r => `
+  const rows = Object.values(tableMap).map(r => ({
+    ...r,
+    varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0,
+    varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0
+  }));
+
+  rows.sort((a,b)=>Math.abs(b.varCoPct)-Math.abs(a.varCoPct));
+  
+  document.getElementById('tabla-detalle').innerHTML=rows.map(r=>`
     <tr>
       <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea}</td>
       <td>${r.prod||'—'}</td>
@@ -866,10 +854,36 @@ function renderAll() {
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
     </tr>`).join('');
+}
 
-  // 9. Tabla Costos Material
-  const rowsMat = Object.values(matTableMap).map(r => { const varCostoNeto = r.cr - r.cp; return { ...r, varKGpct: r.planKG ? (r.realKG - r.planKG) / r.planKG : 0, varCostoNeto: varCostoNeto, varCoPct: r.cp ? varCostoNeto / r.cp : 0 }; }).sort((a, b) => b.varCostoNeto - a.varCostoNeto);
-  document.getElementById('tabla-materiales-costo').innerHTML = rowsMat.map(r => `
+/* NUEVA FUNCIÓN: Renderizar Tabla Detalle por Material */
+function renderTablaMaterialesCosto() {
+  const matMap = {};
+  filteredData.forEach(d => {
+    const matKey = d.materialDesc || d.material || "Sin Nombre";
+    if (!matMap[matKey]) {
+      matMap[matKey] = { material: matKey, planKG: 0, realKG: 0, cp: 0, cr: 0 };
+    }
+    matMap[matKey].planKG += d.plan;
+    matMap[matKey].realKG += d.real;
+    matMap[matKey].cp += d.costoPlan;
+    matMap[matKey].cr += d.costoReal;
+  });
+
+  const rows = Object.values(matMap).map(r => {
+    const varCostoNeto = r.cr - r.cp;
+    return {
+      ...r,
+      varKGpct: r.planKG ? (r.realKG - r.planKG) / r.planKG : 0,
+      varCostoNeto: varCostoNeto,
+      varCoPct: r.cp ? varCostoNeto / r.cp : 0
+    };
+  });
+
+  // Ordenar de mayor impacto financiero negativo (sobrecosto absoluto) a menor/ahorro
+  rows.sort((a, b) => b.varCostoNeto - a.varCostoNeto);
+
+  document.getElementById('tabla-materiales-costo').innerHTML = rows.map(r => `
     <tr>
       <td style="color:var(--accent3); font-family:DM Sans; font-size:12px; font-weight:700">${r.material}</td>
       <td>${fmt(r.planKG)} KG</td>
@@ -881,11 +895,27 @@ function renderAll() {
       <td><span class="pill ${r.varCoPct > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCoPct >= 0 ? '+' : ''}${(r.varCoPct * 100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCostoNeto > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCostoNeto > 0 ? '▲ Sobrecosto' : '▼ Ahorro'}</span></td>
     </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
+}
 
-  // 10. Preparación final de la Tabla Ordenamiento Paginada
-  ordenTableState.rows = Array.from(ordenMap.values()).map(r => ({ ...r, varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0, varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0 }));
-  ordenTableState.page = 1;
-  renderTablaOrden();
+function buildOrdenRows() {
+  const ordenMap = new Map();
+  filteredData.forEach(d => {
+    if (!d.orden) return;
+    if (!ordenMap.has(d.orden)) {
+      ordenMap.set(d.orden, { orden: d.orden, linea: d.linea, prod: d.producto, fecha: d.fecha, plan: 0, real: 0, cp: 0, cr: 0 });
+    }
+    const r = ordenMap.get(d.orden);
+    r.plan += d.plan;
+    r.real += d.real;
+    r.cp   += d.costoPlan;
+    r.cr   += d.costoReal;
+    if (d.fecha && (!r.fecha || d.fecha < r.fecha)) r.fecha = d.fecha;
+  });
+  return Array.from(ordenMap.values()).map(r => ({
+    ...r,
+    varKGpct:  r.plan ? (r.real - r.plan) / r.plan : 0,
+    varCoPct:  r.cp   ? (r.cr  - r.cp)   / r.cp   : 0,
+  }));
 }
 
 function ordenSort(col) {
@@ -908,7 +938,6 @@ function renderTablaOrden() {
     (r.prod   || '').toLowerCase().includes(search) ||
     (r.fecha ? fmtFecha(r.fecha).toLowerCase().includes(search) : false)
   );
-  
   const { sortCol, sortDir } = ordenTableState;
   rows.sort((a, b) => {
     let va, vb;
@@ -924,25 +953,20 @@ function renderTablaOrden() {
     if (va > vb) return sortDir === 'asc' ? 1 : -1;
     return 0;
   });
-  
   const total = rows.length;
   const pageSize = ordenTableState.pageSize;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   ordenTableState.page = Math.min(ordenTableState.page, totalPages);
   const start = (ordenTableState.page - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
-  
   document.getElementById('orden-page-info').textContent =
     `${total === 0 ? 0 : start + 1}–${Math.min(start + pageSize, total)} de ${total.toLocaleString('es-CO')} órdenes`;
-  
   document.getElementById('btn-prev-orden').disabled = ordenTableState.page <= 1;
   document.getElementById('btn-next-orden').disabled = ordenTableState.page >= totalPages;
-  
   document.querySelectorAll('#tabla-orden-table thead th.sortable').forEach(th => {
     th.classList.remove('asc', 'desc');
     if (th.dataset.col === sortCol) th.classList.add(sortDir);
   });
-  
   document.getElementById('tabla-orden').innerHTML = pageRows.map(r => `
     <tr>
       <td style="color:var(--accent2);font-family:DM Sans;font-size:12px;font-weight:700;letter-spacing:.5px">${r.orden||'—'}</td>
@@ -958,9 +982,22 @@ function renderTablaOrden() {
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
     </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
 }
+
+function renderAll() {
+  renderScorecards();
+  renderChartLinea();
+  renderChartKgProducto();
+  renderChartMaterial();
+  renderChartMes();
+  renderChartCostosBarras();
+  renderChartCostosMaterial();
+  renderTable();
+  renderTablaMaterialesCosto();
+  ordenTableState.rows = buildOrdenRows();
+  ordenTableState.page = 1;
+  renderTablaOrden();
+}
 </script>
-
-
 </body>
 </html>
 
