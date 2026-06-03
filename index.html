@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard · Variación de Materiales</title>
+<title>Dashboard · Variación de Materiales </title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:#0b0f1a; --surface:#141929; --surface2:#1c2438; --border:#252e45;
+  --bg:#0b0f1a; --surface:#141929; --surface2:#1c2438;
+  --border:#252e45;
   --accent:#00e5c3; --accent2:#6c9cff; --accent3:#ffd166; --accent4:#ff6b6b;
   --text:#e8edf5; --text-muted:#7a8aaa;
   --positive:#00c896; --negative:#ff5252; --radius:16px;
@@ -26,10 +26,50 @@ header{display:flex;align-items:flex-end;justify-content:space-between;margin-bo
 .header-left h1{font-family:'Georgia',sans-serif;font-size:clamp(32px,4vw,90px);font-weight:800;line-height:1.1;letter-spacing:-1px}
 .header-left h1 span{color:var(--accent)}
 .header-left p{color:var(--text-muted);margin-top:6px;font-size:14px}
-.badge{background:linear-gradient(135deg,var(--accent),#00bfa5);color:#0b0f1a;font-family:'DM Sans',sans-serif;font-weight:700;font-size:11px;padding:5px 12px;border-radius:20px;letter-spacing:1px;text-transform:uppercase}
-.filters{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;align-items:flex-end;position:relative;z-index:10}
+
+.filters{
+  display:flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+  z-index: 10;
+}
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+.filter-group{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  flex: 1;
+  min-width: 180px;
+  position:relative;
+}
+.filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 4px;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.switches-group {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
 .filters label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',sans-serif;margin-bottom:4px}
-.filter-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px;position:relative}
 .custom-dropdown { position: relative; width: 100%; }
 .dropdown-trigger {
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);
@@ -60,7 +100,6 @@ header{display:flex;align-items:flex-end;justify-content:space-between;margin-bo
 .dropdown-item:hover { background: rgba(0, 229, 195, 0.08); }
 .dropdown-item input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
 .dropdown-item.all-option { border-bottom: 1px solid var(--border); font-weight: 600; color: var(--accent); }
-.filter-actions { display: flex; align-items: center; gap: 16px; margin-bottom: 2px; flex-wrap: nowrap; }
 .btn-reset{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:0 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;height:38px;white-space:nowrap}
 .btn-reset:hover{border-color:var(--accent);color:var(--accent)}
 .btn-refresh{background:transparent;border:1px solid var(--accent);color:var(--accent);padding:8px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .2s}
@@ -73,7 +112,7 @@ header{display:flex;align-items:flex-end;justify-content:space-between;margin-bo
 .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: var(--text-muted); transition: .3s; border-radius: 50%; }
 input:checked + .slider { background-color: rgba(0, 229, 195, 0.15); border-color: var(--accent); }
 input:checked + .slider:before { transform: translateX(18px); background-color: var(--accent); }
-#error-msg{display:none;background:rgba(255,82,82,.1);border:1px solid var(--negative);color:var(--negative);border-radius:10px;padding:12px 18px;font-size:13px;margin-bottom:20px}
+#error-msg{display:none;background:rgba(255,82,82,.15);border:2px solid var(--negative);color:#ff7b7b;border-radius:12px;padding:20px;font-size:14px;margin-bottom:28px;font-family:'DM Sans',sans-serif;line-height:1.5}
 .scorecards{display:grid;grid-template-columns:repeat(6, 1fr);gap:14px;margin-bottom:28px}
 @media(max-width:1200px){.scorecards{grid-template-columns:repeat(3, 1fr)}}
 @media(max-width:768px){.scorecards{grid-template-columns:repeat(2, 1fr)}}
@@ -83,8 +122,10 @@ input:checked + .slider:before { transform: translateX(18px); background-color: 
 .card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
 .card.c1::after{background:linear-gradient(90deg,var(--accent),#00bfa5)}
 .card.c2::after{background:linear-gradient(90deg,var(--accent2),#4a82f6)}
+.card.c3::after{background:linear-gradient(90deg,var(--negative),#ff7b7b)}
 .card.c4::after{background:linear-gradient(90deg,var(--accent3),#ffb03a)}
 .card.c5::after{background:linear-gradient(90deg,var(--accent4),#f64a4a)}
+.card.c6::after{background:linear-gradient(90deg,var(--negative),#ff7b7b)}
 .card-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',sans-serif;margin-bottom:10px}
 .card-value{font-family:'DM Sans',sans-serif;font-size:clamp(14px, 1.8vw, 20px);font-weight:800;line-height:1.1;word-break:break-all}
 .card-sub{font-size:11px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -97,7 +138,6 @@ input:checked + .slider:before { transform: translateX(18px); background-color: 
 .chart-title{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px}
 .chart-subtitle{font-size:12px;color:var(--text-muted);margin-bottom:20px}
 .chart-wrap{position:relative;height:280px}
-.chart-wrap-sm{position:relative;height:240px}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead th{background:var(--surface2);color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -107,33 +147,16 @@ tbody td{padding:12px 16px;white-space:nowrap}
 .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif}
 .pill-pos{background:rgba(255,82,82,.15);color:var(--negative)}
 .pill-neg{background:rgba(0,200,150,.15);color:var(--positive)}
-.table-controls {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
-}
-.table-search {
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-  padding: 8px 14px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif;
-  width: 260px; outline: none; transition: border-color .2s;
-}
+.table-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.table-search { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; width: 260px; outline: none; transition: border-color .2s; }
 .table-search:focus { border-color: var(--accent); }
 .table-search::placeholder { color: var(--text-muted); }
-.pagination {
-  display: flex; align-items: center; gap: 6px;
-}
+.pagination { display: flex; align-items: center; gap: 6px; }
 .page-info { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-.btn-page {
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
-  padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
-  font-family: 'DM Sans', sans-serif; transition: all .2s;
-}
+.btn-page { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .2s; }
 .btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn-page:disabled { opacity: 0.35; cursor: not-allowed; }
-.page-size-select {
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
-  padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
-  font-family: 'DM Sans', sans-serif; outline: none;
-}
+.page-size-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; outline: none; }
 .legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
 .legend-dot{width:10px;height:10px;border-radius:2px}
@@ -152,13 +175,13 @@ footer p{font-size:12px;color:var(--text-muted)}
 <body>
 <div id="loading-overlay">
   <div class="spinner"></div>
-  <div class="loading-text" id="loading-text">Conectando con base de datos en tiempo real…</div>
+  <div class="loading-text" id="loading-text">Cargando datos… Son muchos..</div>
 </div>
 <div id="dashboard">
   <header>
     <div class="header-left">
       <h1>Análisis de <span>Variación</span><br>de Materiales</h1>
-      <p id="header-sub">Consumo Planeado vs. Consumo Real · 2026</p>
+      <p id="header-sub">Consumo Planeado vs. Consumo Real </p>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
       <img
@@ -168,62 +191,98 @@ footer p{font-size:12px;color:var(--text-muted)}
         onerror="this.style.display='none'"
       />
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn-refresh" onclick="cargarDesdeSheets()">🔄 Sincronizar Ahora</button>
+        <button class="btn-refresh" onclick="cargarDesdeAppsScript()">🔄 Sincronizar</button>
       </div>
     </div>
   </header>
+  
   <div id="error-msg"></div>
+
   <div class="filters">
-    <div class="filter-group">
-      <label>Línea</label>
-      <div class="custom-dropdown" id="d-linea">
-        <div class="dropdown-trigger" onclick="toggleDropdown('d-linea')">Todas las líneas</div>
-        <div class="dropdown-menu" id="m-linea"></div>
+    <div class="filters-row">
+      <div class="filter-group">
+        <label>Línea</label>
+        <div class="custom-dropdown" id="d-linea">
+          <div class="dropdown-trigger" onclick="toggleDropdown('d-linea')">Todas las líneas</div>
+          <div class="dropdown-menu" id="m-linea"></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Mes</label>
+        <div class="custom-dropdown" id="d-mes">
+          <div class="dropdown-trigger" onclick="toggleDropdown('d-mes')">Todos los meses</div>
+          <div class="dropdown-menu" id="m-mes"></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Tipo</label>
+        <div class="custom-dropdown" id="d-tipo">
+          <div class="dropdown-trigger" onclick="toggleDropdown('d-tipo')">Todos los tipos</div>
+          <div class="dropdown-menu" id="m-tipo"></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Producto</label>
+        <div class="custom-dropdown" id="d-producto">
+          <div class="dropdown-trigger" onclick="toggleDropdown('d-producto')">Todos los productos</div>
+          <div class="dropdown-menu" id="m-producto"></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Material</label>
+        <div class="custom-dropdown" id="d-material">
+          <div class="dropdown-trigger" onclick="toggleDropdown('d-material')">Todos los materiales</div>
+          <div class="dropdown-menu" id="m-material"></div>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Orden de Producción</label>
+        <div class="custom-dropdown" id="d-orden">
+          <div class="dropdown-trigger" onclick="toggleDropdown('d-orden')">Todas las órdenes</div>
+          <div class="dropdown-menu" id="m-orden"></div>
+        </div>
       </div>
     </div>
-    <div class="filter-group">
-      <label>Mes</label>
-      <div class="custom-dropdown" id="d-mes">
-        <div class="dropdown-trigger" onclick="toggleDropdown('d-mes')">Todos los meses</div>
-        <div class="dropdown-menu" id="m-mes"></div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>Tipo</label>
-      <div class="custom-dropdown" id="d-tipo">
-        <div class="dropdown-trigger" onclick="toggleDropdown('d-tipo')">Todos los tipos</div>
-        <div class="dropdown-menu" id="m-tipo"></div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>Producto</label>
-      <div class="custom-dropdown" id="d-producto">
-        <div class="dropdown-trigger" onclick="toggleDropdown('d-producto')">Todos los productos</div>
-        <div class="dropdown-menu" id="m-producto"></div>
-      </div>
-    </div>
-    <div class="filter-group">
-      <label>Material</label>
-      <div class="custom-dropdown" id="d-material">
-        <div class="dropdown-trigger" onclick="toggleDropdown('d-material')">Todos los materiales</div>
-        <div class="dropdown-menu" id="m-material"></div>
-      </div>
-    </div>
+
     <div class="filter-actions">
-      <div class="switch-container" onclick="toggleOutliersSwitch(event)">
-        <span class="switch-label">Excluir Reprocesos/Mermas</span>
-        <label class="switch">
-          <input type="checkbox" id="switch-outliers" onchange="applyFilters()">
-          <span class="slider"></span>
-        </label>
+      <div class="switches-group">
+        <div class="switch-container" onclick="toggleOutliersSwitch(event)">
+          <span class="switch-label">Excluir Reprocesos/Mermas</span>
+          <label class="switch">
+            <input type="checkbox" id="switch-outliers" onchange="applyFilters()">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="switch-container" onclick="toggleNpdiSwitch(event)">
+          <span class="switch-label">Excluir Línea NPDI</span>
+          <label class="switch">
+            <input type="checkbox" id="switch-npdi" onchange="applyFilters()">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="switch-container" onclick="toggleMezclasSwitch(event)">
+          <span class="switch-label">Excluir Línea Mezclas</span>
+          <label class="switch">
+            <input type="checkbox" id="switch-mezclas" onchange="applyFilters()">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="switch-container" onclick="toggleReelaboradoSwitch(event)">
+          <span class="switch-label">Excluir Línea Reelaborado</span>
+          <label class="switch">
+            <input type="checkbox" id="switch-reelaborado" onchange="applyFilters()">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
       <button class="btn-reset" onclick="resetFilters()">↺ Limpiar filtros</button>
     </div>
   </div>
+
   <div class="scorecards">
-    <div class="card c1"><div class="card-label">Total Plan (KG)</div><div class="card-value" id="sc-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo planeado</div></div>
-    <div class="card c2"><div class="card-label">Total Real (KG)</div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
-    <div class="card c3" id="card-var-kg-box"><div class="card-label">Variación KG</div><div class="card-value" id="sc-var-kg">—</div><div class="card-sub" id="sc-var-kg-pct">—</div></div>
+    <div class="card c1"><div class="card-label">Total Plan</div><div class="card-value" id="sc-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo planeado</div></div>
+    <div class="card c2"><div class="card-label">Total Real </div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
+    <div class="card c3" id="card-var-kg-box"><div class="card-label">Variación</div><div class="card-value" id="sc-var-kg">—</div><div class="card-sub" id="sc-var-kg-pct">—</div></div>
     <div class="card c4"><div class="card-label">Costo Plan</div><div class="card-value" id="sc-costo-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Presupuesto total</div></div>
     <div class="card c5"><div class="card-label">Costo Real</div><div class="card-value" id="sc-costo-real">—</div><div class="card-sub" style="color:var(--text-muted)">Gasto real total</div></div>
     <div class="card c6" id="card-var-costo-box"><div class="card-label">Variación Costo</div><div class="card-value" id="sc-var-costo-val">—</div><div class="card-sub" id="sc-var-costo-pct">—</div></div>
@@ -231,20 +290,20 @@ footer p{font-size:12px;color:var(--text-muted)}
   <div class="charts-grid">
     <div class="chart-card col-6">
       <div class="chart-title">Plan vs Real por Línea de Producción</div>
-      <div class="chart-subtitle">Comparación de consumo en KG por línea</div>
+      <div class="chart-subtitle">Comparación de consumo por línea</div>
       <div class="chart-wrap"><canvas id="chart-linea"></canvas></div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>Plan (KG)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#6c9cff"></div>Real (KG)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>Plan </div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6c9cff"></div>Real </div>
       </div>
     </div>
     <div class="chart-card col-6">
-      <div class="chart-title">Plan vs Real por Producto (KG)</div>
-      <div class="chart-subtitle">Comparación de consumo en KG por producto (Top 15)</div>
+      <div class="chart-title">Plan vs Real por Producto</div>
+      <div class="chart-subtitle">Comparación de consumo por producto (Top 15)</div>
       <div class="chart-wrap"><canvas id="chart-kg-producto"></canvas></div>
       <div class="legend" style="margin-top:10px;">
-        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>Plan (KG)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#6c9cff"></div>Real (KG)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#00e5c3"></div>Plan</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6c9cff"></div>Real </div>
       </div>
     </div>
     <div class="chart-card col-6">
@@ -280,7 +339,7 @@ footer p{font-size:12px;color:var(--text-muted)}
       <div class="chart-subtitle">Resumen agregado con indicadores de variación</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Línea</th><th>Producto</th><th>Plan KG</th><th>Real KG</th><th>Var KG %</th><th>Costo Plan</th><th>Costo Real</th><th>Var Costo %</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Línea</th><th>Producto</th><th>Plan</th><th>Real</th><th>Var %</th><th>Costo Plan</th><th>Costo Real</th><th>Var Costo %</th><th>Estado</th></tr></thead>
           <tbody id="tabla-detalle"></tbody>
         </table>
       </div>
@@ -293,9 +352,9 @@ footer p{font-size:12px;color:var(--text-muted)}
           <thead>
             <tr>
               <th>Material / Componente</th>
-              <th>Plan KG</th>
-              <th>Real KG</th>
-              <th>Var KG %</th>
+              <th>Plan</th>
+              <th>Real</th>
+              <th>Var %</th>
               <th>Costo Plan</th>
               <th>Costo Real</th>
               <th>Var Costo ($)</th>
@@ -340,9 +399,9 @@ footer p{font-size:12px;color:var(--text-muted)}
               <th class="sortable" data-col="linea" onclick="ordenSort('linea')">Línea</th>
               <th class="sortable" data-col="prod" onclick="ordenSort('prod')">Producto</th>
               <th class="sortable" data-col="fecha" onclick="ordenSort('fecha')">Fecha</th>
-              <th class="sortable" data-col="plan" onclick="ordenSort('plan')">Plan KG</th>
-              <th class="sortable" data-col="real" onclick="ordenSort('real')">Real KG</th>
-              <th class="sortable" data-col="varKGpct" onclick="ordenSort('varKGpct')">Var KG %</th>
+              <th class="sortable" data-col="plan" onclick="ordenSort('plan')">Plan</th>
+              <th class="sortable" data-col="real" onclick="ordenSort('real')">Real</th>
+              <th class="sortable" data-col="varKGpct" onclick="ordenSort('varKGpct')">Var %</th>
               <th class="sortable" data-col="cp" onclick="ordenSort('cp')">Costo Plan</th>
               <th class="sortable" data-col="cr" onclick="ordenSort('cr')">Costo Real</th>
               <th class="sortable" data-col="varCoPct" onclick="ordenSort('varCoPct')">Var Costo %</th>
@@ -356,7 +415,7 @@ footer p{font-size:12px;color:var(--text-muted)}
   </div>
   <footer>
     <p id="footer-info">Dashboard · Variación de Materiales · 2026</p>
-    <p><span class="dot-live"></span>Conectado en vivo a Google Sheets</p>
+    <p><span class="dot-live"></span>Conectado mediante Google Web </p>
   </footer>
   <div style="text-align:right;padding:14px 0 36px;margin-top:4px">
     <p style="font-family:'Georgia',serif;font-size:12px;color:var(--text-muted);letter-spacing:.4px;font-style:italic">
@@ -364,8 +423,9 @@ footer p{font-size:12px;color:var(--text-muted)}
     </p>
   </div>
 </div>
+
 <script>
-const SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSlwwBEM71qFAYSUUnvGpi8z6WiTu0q9Eu9G6xQTVhHYEOpTS4_tt-o4H9iNjgLbTQ0eIJPmVBQdbug/pub?gid=2121479416&single=true&output=csv";
+const APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbxj1hwnLPc5A-t1TzwQoxSUHF4WNquEpa9Xj8hhPP9q0cDXa0mVT5O9lVDNgLpVgnYHgA/exec";
 const OUTLIERS_MATERIALS = [
   "reproceso mezcla crema","desperdicio mezcla crema",
   "reproceso mezcla agua","desperdicio mezcla agua"
@@ -373,28 +433,22 @@ const OUTLIERS_MATERIALS = [
 let rawData = [];
 let filteredData = [];
 let charts = {};
-let selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'] };
+let selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
 const mesOrder = {ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
-let ordenTableState = {
-  page: 1,
-  pageSize: 20,
-  sortCol: 'fecha',
-  sortDir: 'asc',
-  rows: []
-};
-const COLORS = {
-  accent:'#00e5c3', accent2:'#6c9cff', accent3:'#ffd166',
-  accent4:'#ff6b6b', pos:'#ff5252', neg:'#00c896', muted:'#7a8aaa'
-};
+let ordenTableState = { page: 1, pageSize: 20, sortCol: 'fecha', sortDir: 'asc', rows: [] };
+const COLORS = { accent:'#00e5c3', accent2:'#6c9cff', accent3:'#ffd166', accent4:'#ff6b6b', pos:'#ff5252', neg:'#00c896', muted:'#7a8aaa' };
+
 Chart.defaults.color = '#7a8aaa';
 Chart.defaults.borderColor = '#252e45';
 Chart.defaults.font.family = 'DM Sans';
-window.addEventListener('DOMContentLoaded', cargarDesdeSheets);
+
+window.addEventListener('DOMContentLoaded', cargarDesdeAppsScript);
 window.addEventListener('click', function(e) {
   if (!e.target.closest('.custom-dropdown')) {
     document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('active'));
   }
 });
+
 function toggleDropdown(id) {
   const el = document.getElementById(id);
   const wasActive = el.classList.contains('active');
@@ -404,6 +458,7 @@ function toggleDropdown(id) {
     setTimeout(() => { const s = el.querySelector('.dropdown-search'); if(s) s.focus(); }, 50);
   }
 }
+
 function toggleOutliersSwitch(e) {
   if(e.target.tagName !== 'INPUT') {
     const cb = document.getElementById('switch-outliers');
@@ -411,131 +466,143 @@ function toggleOutliersSwitch(e) {
     applyFilters();
   }
 }
-function cargarDesdeSheets() {
+
+function toggleNpdiSwitch(e) {
+  if(e.target.tagName !== 'INPUT') {
+    const cb = document.getElementById('switch-npdi');
+    cb.checked = !cb.checked;
+    applyFilters();
+  }
+}
+
+function toggleMezclasSwitch(e) {
+  if(e.target.tagName !== 'INPUT') {
+    const cb = document.getElementById('switch-mezclas');
+    cb.checked = !cb.checked;
+    applyFilters();
+  }
+}
+
+function toggleReelaboradoSwitch(e) {
+  if(e.target.tagName !== 'INPUT') {
+    const cb = document.getElementById('switch-reelaborado');
+    cb.checked = !cb.checked;
+    applyFilters();
+  }
+}
+
+function cargarDesdeAppsScript() {
   document.getElementById('loading-overlay').style.display = 'flex';
   document.getElementById('error-msg').style.display = 'none';
-  const urlConCacheBuster = SHEETS_CSV_URL + "&t=" + new Date().getTime();
-  fetch(urlConCacheBuster)
+  fetch(APPS_SCRIPT_API_URL)
     .then(response => {
-      if (!response.ok) throw new Error('No se pudo conectar con el servidor de Google.');
-      return response.text();
+      if(!response.ok) {
+        throw new Error("HTTP Status " + response.status + ". Puede ser un problema de permisos de Google Workspace.");
+      }
+      return response.json();
     })
-    .then(csvText => {
-      Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-          try {
-            const mapped = parseRows(results.data);
-            if (mapped.length === 0) throw new Error('No se detectaron datos válidos.');
-            Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
-            rawData = mapped;
-            filteredData = [...rawData];
-            document.getElementById('loading-overlay').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-            resetSelectionsObject();
-            populateFilters();
-            applyFilters();
-          } catch(err) { manejarError(err.message); }
-        }
-      });
+    .then(res => {
+      if (res.error) throw new Error(res.error);
+      
+      rawData = res.datos.map(d => ({
+        ...d,
+        fecha: d.fecha ? new Date(d.fecha) : null
+      }));
+      
+      Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
+      filteredData = [...rawData];
+      document.getElementById('loading-overlay').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      resetSelectionsObject();
+      populateFilters();
+      applyFilters();
     })
     .catch(err => manejarError(err.message));
 }
+
 function manejarError(msg) {
   document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  
   const errorDiv = document.getElementById('error-msg');
-  errorDiv.textContent = '⚠️ Error actualizando base de datos cloud: ' + msg;
+  errorDiv.innerHTML = `
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error en la Carga de la API Cloud</div>
+    <div>Detalle del problema: <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#ffb03a;">${msg}</code></div>
+    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+      Recomendaciones:<br>
+      1. Asegúrate de estar logueado con tu correo de <strong>@meals.com.co</strong> en este navegador.<br>
+      2. Revisa que la pestaña de tu Google Sheets se llame exactamente <strong>BD</strong> (en mayúsculas).<br>
+      3. Verifica que la cabecera de la fila 1 contenga todas las columnas esperadas.
+    </div>
+  `;
   errorDiv.style.display = 'block';
+  console.error(msg);
 }
-function parseNum(val) {
-  if (val === undefined || val === null) return 0;
-  let s = String(val).trim().replace(/\s/g, '').replace(/\$/g, '').replace(/COP/gi, '');
-  if (!s) return 0;
-  if (s.includes(',')) s = s.replace(',', '.');
-  const res = parseFloat(s);
-  return isNaN(res) ? 0 : res;
-}
-function parseStr(val) { return String(val || '').trim(); }
-function col(row, ...names) {
-  for (const n of names) {
-    const k = Object.keys(row).find(k => k.trim().toLowerCase() === n.toLowerCase());
-    if (k !== undefined && row[k] !== undefined) return row[k];
-  }
-  return '';
-}
-function parseFecha(val) {
-  const s = parseStr(val);
-  if (!s) return null;
-  const dmY = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
-  if (dmY) return new Date(+dmY[3], +dmY[2]-1, +dmY[1]);
-  const Ymd = s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
-  if (Ymd) return new Date(+Ymd[1], +Ymd[2]-1, +Ymd[3]);
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
-}
-function fmtFecha(fecha) {
-  if (!fecha) return '—';
-  return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-function parseRows(data) {
-  return data.map(row => ({
-    orden:        parseStr(col(row,'Orden')),
-    material:      parseStr(col(row,'Material')),
-    materialDesc: parseStr(col(row,'Texto breve material','Texto Breve Material')),
-    producto:      parseStr(col(row,'Texto Breve Producto','Texto breve producto','TextoBreveProd')),
-    mes:          parseStr(col(row,'Mes')).toLowerCase(),
-    fecha:        parseFecha(col(row,'Fecha','fecha','FECHA')),
-    tipo:          parseStr(col(row,'Tipo')),
-    linea:        parseStr(col(row,'Linea','Linea_','Línea')),
-    plan:          parseNum(col(row,'Cant_Plan_(KG)','Cant Plan (KG)','CantPlanKG')),
-    real:          parseNum(col(row,'Cant_Real_(KG)','Cant Real (KG)','CantRealKG')),
-    costoPlan:    parseNum(col(row,'Costo_Plan','Costo Plan','CostoPlan')),
-    costoReal:    parseNum(col(row,'Costo_Real','Costo Real','CostoReal')),
-  })).filter(d => d.linea && (d.plan !== 0 || d.real !== 0 || d.costoPlan !== 0 || d.costoReal !== 0));
-}
+
 function resetSelectionsObject() {
-  selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'] };
+  selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
   document.getElementById('switch-outliers').checked = true;
+  document.getElementById('switch-npdi').checked = true;
+  document.getElementById('switch-mezclas').checked = true; // Por defecto desactivado (no excluye)
+  document.getElementById('switch-reelaborado').checked = true; // Por defecto desactivado (no excluye)
 }
+
 function populateFilters() {
   const excludeOutliers = document.getElementById('switch-outliers').checked;
+  const excludeNpdi = document.getElementById('switch-npdi').checked;
+  const excludeMezclas = document.getElementById('switch-mezclas').checked;
+  const excludeReelaborado = document.getElementById('switch-reelaborado').checked;
+
   const filterSpecs = [
     { dropdownId: 'd-linea', menuId: 'm-linea', key: 'linea', textAll: 'Todas las líneas', sortFn: null },
     { dropdownId: 'd-mes', menuId: 'm-mes', key: 'mes', textAll: 'Todos los meses', sortFn: (a,b) => (mesOrder[a]||99) - (mesOrder[b]||99) },
     { dropdownId: 'd-tipo', menuId: 'm-tipo', key: 'tipo', textAll: 'Todos los tipos', sortFn: null },
     { dropdownId: 'd-producto', menuId: 'm-producto', key: 'producto', textAll: 'Todos los productos', sortFn: null },
-    { dropdownId: 'd-material', menuId: 'm-material', key: 'material', textAll: 'Todos los materiales', sortFn: null }
+    { dropdownId: 'd-material', menuId: 'm-material', key: 'material', textAll: 'Todos los materiales', sortFn: null },
+    { dropdownId: 'd-orden', menuId: 'm-orden', key: 'orden', textAll: 'Todas las órdenes', sortFn: (a,b) => String(a).localeCompare(String(b), undefined, {numeric: true}) }
   ];
+
   filterSpecs.forEach(spec => {
     const menu = document.getElementById(spec.menuId);
     const dropdownEl = document.getElementById(spec.dropdownId);
     const trigger = dropdownEl.querySelector('.dropdown-trigger');
+    
     const validDataForThisFilter = rawData.filter(d => {
       if (excludeOutliers && OUTLIERS_MATERIALS.includes((d.materialDesc || d.material).toLowerCase())) return false;
+      if (excludeNpdi && String(d.linea).toUpperCase() === 'NPDI') return false;
+      if (excludeMezclas && String(d.linea).toUpperCase() === 'MEZCLAS') return false;
+      if (excludeReelaborado && String(d.linea).toUpperCase() === 'REELABORADO') return false;
+
       const matchLinea    = spec.key === 'linea'    || selections.linea.includes('all')    || selections.linea.includes(d.linea);
       const matchMes      = spec.key === 'mes'      || selections.mes.includes('all')      || selections.mes.includes(d.mes);
       const matchTipo     = spec.key === 'tipo'     || selections.tipo.includes('all')     || selections.tipo.includes(d.tipo);
       const matchProducto = spec.key === 'producto' || selections.producto.includes('all') || selections.producto.includes(d.producto);
       const matchMaterial = spec.key === 'material' || selections.material.includes('all') || selections.material.includes(d.materialDesc || d.material);
-      return matchLinea && matchMes && matchTipo && matchProducto && matchMaterial;
+      const matchOrden    = spec.key === 'orden'    || selections.orden.includes('all')    || selections.orden.includes(d.orden);
+      return matchLinea && matchMes && matchTipo && matchProducto && matchMaterial && matchOrden;
     });
+
     let uniqueItems = [...new Set(validDataForThisFilter.map(d => spec.key === 'material' ? (d.materialDesc || d.material) : d[spec.key]))].filter(Boolean);
     if (spec.sortFn) uniqueItems.sort(spec.sortFn);
     else uniqueItems.sort();
+
     let currentKeys = selections[spec.key];
     const existingSearch = menu.querySelector('.dropdown-search');
     const searchTerm = existingSearch ? existingSearch.value.toLowerCase() : '';
+    
     menu.innerHTML = '';
     const searchWrap = document.createElement('div');
     searchWrap.className = 'dropdown-search-wrap';
-    searchWrap.innerHTML = `<input class="dropdown-search" type="text" placeholder="🔍 Buscar…" value="${searchTerm.replace(/"/g,'&quot;')}">`;
     searchWrap.onclick = e => e.stopPropagation();
+    searchWrap.innerHTML = `<input class="dropdown-search" type="text" placeholder="🔍 Buscar…" value="${searchTerm.replace(/"/g,'&quot;')}">`;
     menu.appendChild(searchWrap);
+
     const itemsWrap = document.createElement('div');
     itemsWrap.className = 'dropdown-items-wrap';
     menu.appendChild(itemsWrap);
+
     const isAllChecked = currentKeys.includes('all');
+
     function buildItems(filter) {
       itemsWrap.innerHTML = '';
       const allDiv = document.createElement('div');
@@ -543,6 +610,7 @@ function populateFilters() {
       allDiv.innerHTML = `<input type="checkbox" value="all" ${isAllChecked ? 'checked' : ''}> <span>${spec.textAll}</span>`;
       allDiv.onclick = (e) => handleCheckboxChange(e, spec.key, 'all');
       if (!filter || spec.textAll.toLowerCase().includes(filter)) itemsWrap.appendChild(allDiv);
+
       uniqueItems.forEach(val => {
         const displayLabel = spec.key === 'mes' ? val.charAt(0).toUpperCase() + val.slice(1) : val;
         if (filter && !displayLabel.toLowerCase().includes(filter)) return;
@@ -554,15 +622,19 @@ function populateFilters() {
         itemsWrap.appendChild(itemDiv);
       });
     }
+
     buildItems(searchTerm);
+
     searchWrap.querySelector('.dropdown-search').addEventListener('input', function() {
       buildItems(this.value.toLowerCase());
     });
+
     if (isAllChecked || currentKeys.length === 0) trigger.textContent = spec.textAll;
     else if (currentKeys.length === 1) trigger.textContent = spec.key === 'mes' ? currentKeys[0].charAt(0).toUpperCase() + currentKeys[0].slice(1) : currentKeys[0];
     else trigger.textContent = `${currentKeys.length} seleccionados`;
   });
 }
+
 function handleCheckboxChange(e, key, value) {
   e.stopPropagation();
   const checkbox = e.currentTarget.querySelector('input');
@@ -572,32 +644,47 @@ function handleCheckboxChange(e, key, value) {
     selections[key] = ['all'];
   } else {
     currentValues = currentValues.filter(v => v !== 'all');
-    if (checkbox.checked) { if (!currentValues.includes(value)) currentValues.push(value); }
-    else { currentValues = currentValues.filter(v => v !== value); }
+    if (checkbox.checked) { 
+      if (!currentValues.includes(value)) currentValues.push(value);
+    } else { 
+      currentValues = currentValues.filter(v => v !== value);
+    }
     if (currentValues.length === 0) currentValues = ['all'];
     selections[key] = currentValues;
   }
   applyFilters();
 }
+
 function applyFilters() {
   const excludeOutliers = document.getElementById('switch-outliers').checked;
+  const excludeNpdi = document.getElementById('switch-npdi').checked;
+  const excludeMezclas = document.getElementById('switch-mezclas').checked;
+  const excludeReelaborado = document.getElementById('switch-reelaborado').checked;
+
   filteredData = rawData.filter(d => {
     if (excludeOutliers && OUTLIERS_MATERIALS.includes((d.materialDesc || d.material).toLowerCase())) return false;
+    if (excludeNpdi && String(d.linea).toUpperCase() === 'NPDI') return false;
+    if (excludeMezclas && String(d.linea).toUpperCase() === 'MEZCLAS') return false;
+    if (excludeReelaborado && String(d.linea).toUpperCase() === 'REELABORADO') return false;
+
     return (selections.linea.includes('all')    || selections.linea.includes(d.linea)) &&
-           (selections.mes.includes('all')      || selections.mes.includes(d.mes)) &&
-           (selections.tipo.includes('all')     || selections.tipo.includes(d.tipo)) &&
-           (selections.producto.includes('all') || selections.producto.includes(d.producto)) &&
-           (selections.material.includes('all') || selections.material.includes(d.materialDesc || d.material));
+          (selections.mes.includes('all')       || selections.mes.includes(d.mes)) &&
+          (selections.tipo.includes('all')      || selections.tipo.includes(d.tipo)) &&
+          (selections.producto.includes('all')  || selections.producto.includes(d.producto)) &&
+          (selections.material.includes('all')  || selections.material.includes(d.materialDesc || d.material)) &&
+          (selections.orden.includes('all')     || selections.orden.includes(d.orden));
   });
   populateFilters();
   renderAll();
 }
+
 function resetFilters() {
   resetSelectionsObject();
   filteredData = [...rawData];
   populateFilters();
   renderAll();
 }
+
 function fmt(n) { return Math.round(n).toLocaleString('es-CO'); }
 function fmtCOP(n) {
   if (n < 0) return '-$' + Math.abs(Math.round(n)).toLocaleString('es-CO');
@@ -608,11 +695,15 @@ function fmtCostoExacto(n) {
   return prefijo + Math.abs(Math.round(n)).toLocaleString('es-CO');
 }
 function fmtPct(n) { return (n>=0?'+':'')+(n*100).toFixed(2)+'%'; }
+function fmtFecha(fecha) {
+  if (!fecha) return '—';
+  return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
 
 function renderScorecards() {
-  const totalPlan  = filteredData.reduce((s,d)=>s+d.plan,0);
-  const totalReal  = filteredData.reduce((s,d)=>s+d.real,0);
+  const totalPlan = filteredData.reduce((s,d)=>s+d.plan,0);
+  const totalReal = filteredData.reduce((s,d)=>s+d.real,0);
   const varKG      = totalReal - totalPlan;
   const varKGpct   = totalPlan ? varKG/totalPlan : 0;
   const cpTotal    = filteredData.reduce((s,d)=>s+d.costoPlan,0);
@@ -620,9 +711,9 @@ function renderScorecards() {
   const varCosto   = crTotal - cpTotal;
   const varCostoPct= cpTotal ? varCosto/cpTotal : 0;
   
-  document.getElementById('sc-plan').textContent = fmt(totalPlan)+' KG';
-  document.getElementById('sc-real').textContent = fmt(totalReal)+' KG';
-  document.getElementById('sc-var-kg').textContent = (varKG>=0?'+':'')+fmt(varKG)+' KG';
+  document.getElementById('sc-plan').textContent = fmt(totalPlan);
+  document.getElementById('sc-real').textContent = fmt(totalReal);
+  document.getElementById('sc-var-kg').textContent = (varKG>=0?'+':'')+fmt(varKG);
   document.getElementById('sc-var-kg').className = 'card-value '+(varKG>0?'pos':'neg');
   document.getElementById('sc-var-kg-pct').textContent = fmtPct(varKGpct)+' vs planeado';
   document.getElementById('sc-var-kg-pct').className = varKG>0?'card-sub pos':'card-sub neg';
@@ -648,15 +739,14 @@ function renderChartLinea() {
   const lineas = Object.keys(lineasMap).sort();
   const dataPlan = lineas.map(l => lineasMap[l].plan);
   const dataReal = lineas.map(l => lineasMap[l].real);
-
   charts.linea = new Chart(document.getElementById('chart-linea').getContext('2d'),{
     type:'bar',
     data:{labels:lineas,datasets:[
-      {label:'Plan (KG)',data:dataPlan,backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:6},
-      {label:'Real (KG)',data:dataReal,backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:6}
+      {label:'Plan ',data:dataPlan,backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:6},
+      {label:'Real ',data:dataReal,backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:6}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}},
       scales:{x:{grid:{color:'#252e45'},ticks:{font:{family:'DM Sans',size:11}}},y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)}}}}
   });
 }
@@ -670,24 +760,22 @@ function renderChartKgProducto() {
     prodMap[p].plan += d.plan;
     prodMap[p].real += d.real;
   });
-  
   const sortedProds = Object.keys(prodMap).sort((a,b) => prodMap[b].real - prodMap[a].real).slice(0, 15);
   const dataPlan = sortedProds.map(p => prodMap[p].plan);
   const dataReal = sortedProds.map(p => prodMap[p].real);
   const labelsCortas = sortedProds.map(l=>l.length>18?l.slice(0,18)+'…':l);
-
   charts.kgProducto = new Chart(document.getElementById('chart-kg-producto').getContext('2d'),{
     type:'bar',
     data:{labels:labelsCortas,datasets:[
-      {label:'Plan (KG)',data:dataPlan,backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:5},
-      {label:'Real (KG)',data:dataReal,backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:5}
+      {label:'Plan ',data:dataPlan,backgroundColor:'rgba(0,229,195,.7)',borderColor:COLORS.accent,borderWidth:1.5,borderRadius:5},
+      {label:'Real ',data:dataReal,backgroundColor:'rgba(108,156,255,.7)',borderColor:COLORS.accent2,borderWidth:1.5,borderRadius:5}
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)} KG`}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}},
       scales:{
         x:{grid:{color:'#252e45'},ticks:{font:{family:'DM Sans',size:10},maxRotation:30,minRotation:20}},
-        y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v)+' KG',font:{size:10}}}
+        y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v),font:{size:10}}}
       }
     }
   });
@@ -702,13 +790,11 @@ function renderChartMaterial() {
     matMap[m].plan += d.plan;
     matMap[m].real += d.real;
   });
-
   const matData = Object.keys(matMap).map(m => {
     const plan = matMap[m].plan;
     const real = matMap[m].real;
     return { label: m.length>24?m.slice(0,24)+'…':m, pct: plan ? ((real-plan)/plan)*100 : 0 };
   });
-  
   matData.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   const top = matData.slice(0,10);
 
@@ -733,15 +819,13 @@ function renderChartMes() {
     mesMap[d.mes].planCosto += d.costoPlan;
     mesMap[d.mes].realCosto += d.costoReal;
   });
-
   const meses = Object.keys(mesMap).sort((a,b)=>(mesOrder[a]||99)-(mesOrder[b]||99));
   const varPct = meses.map(m => mesMap[m].planKG ? ((mesMap[m].realKG - mesMap[m].planKG)/mesMap[m].planKG)*100 : 0);
   const varCostoPct = meses.map(m => mesMap[m].planCosto ? ((mesMap[m].realCosto - mesMap[m].planCosto)/mesMap[m].planCosto)*100 : 0);
-
   charts.mes = new Chart(document.getElementById('chart-mes').getContext('2d'),{
     type:'line',
     data:{labels:meses.map(m=>m.charAt(0).toUpperCase()+m.slice(1)),datasets:[
-      {label:'Var KG %',data:varPct,borderColor:COLORS.accent,backgroundColor:'rgba(0,229,195,.1)',tension:.4,fill:true,pointBackgroundColor:COLORS.accent,pointRadius:5},
+      {label:'Var %',data:varPct,borderColor:COLORS.accent,backgroundColor:'rgba(0,229,195,.1)',tension:.4,fill:true,pointBackgroundColor:COLORS.accent,pointRadius:5},
       {label:'Var Costo %',data:varCostoPct,borderColor:COLORS.accent3,backgroundColor:'rgba(255,209,102,.08)',tension:.4,fill:false,pointBackgroundColor:COLORS.accent3,pointRadius:5,borderDash:[5,4]}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
@@ -760,12 +844,10 @@ function renderChartCostosBarras() {
     prodCostoMap[p].plan += d.costoPlan;
     prodCostoMap[p].real += d.costoReal;
   });
-
   const topCategories = Object.keys(prodCostoMap).sort((a,b) => prodCostoMap[b].real - prodCostoMap[a].real).slice(0, 15);
   const dataPlan = topCategories.map(cat => prodCostoMap[cat].plan);
   const dataReal = topCategories.map(cat => prodCostoMap[cat].real);
   const labelsCortas = topCategories.map(l => l.length > 20 ? l.slice(0,20)+'…' : l);
-
   charts.costosBarras = new Chart(document.getElementById('chart-costos-barras').getContext('2d'), {
     type: 'bar',
     data: {
@@ -795,12 +877,10 @@ function renderChartCostosMaterial() {
     matCostoMap[m].plan += d.costoPlan;
     matCostoMap[m].real += d.costoReal;
   });
-
   const topCategories = Object.keys(matCostoMap).sort((a,b) => matCostoMap[b].real - matCostoMap[a].real).slice(0, 15);
   const dataPlan = topCategories.map(cat => matCostoMap[cat].plan);
   const dataReal = topCategories.map(cat => matCostoMap[cat].real);
   const labelsCortas = topCategories.map(l => l.length > 22 ? l.slice(0,22)+'…' : l);
-
   charts.costosMaterial = new Chart(document.getElementById('chart-costos-material').getContext('2d'), {
     type: 'bar',
     data: {
@@ -833,30 +913,27 @@ function renderTable() {
     tableMap[key].cp += d.costoPlan;
     tableMap[key].cr += d.costoReal;
   });
-
   const rows = Object.values(tableMap).map(r => ({
     ...r,
     varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0,
     varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0
   }));
-
   rows.sort((a,b)=>Math.abs(b.varCoPct)-Math.abs(a.varCoPct));
   
   document.getElementById('tabla-detalle').innerHTML=rows.map(r=>`
     <tr>
       <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea}</td>
       <td>${r.prod||'—'}</td>
-      <td>${fmt(r.plan)} KG</td>
-      <td>${fmt(r.real)} KG</td>
+      <td>${fmt(r.plan)}</td>
+      <td>${fmt(r.real)}</td>
       <td><span style="color:${r.varKGpct>0?'var(--negative)':'var(--positive)'}">${r.varKGpct>=0?'+':''}${(r.varKGpct*100).toFixed(2)}%</span></td>
       <td>${fmtCOP(r.cp)}</td>
       <td>${fmtCOP(r.cr)}</td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
-    </tr>`).join('');
+   </tr>`).join('');
 }
 
-/* NUEVA FUNCIÓN: Renderizar Tabla Detalle por Material */
 function renderTablaMaterialesCosto() {
   const matMap = {};
   filteredData.forEach(d => {
@@ -869,7 +946,6 @@ function renderTablaMaterialesCosto() {
     matMap[matKey].cp += d.costoPlan;
     matMap[matKey].cr += d.costoReal;
   });
-
   const rows = Object.values(matMap).map(r => {
     const varCostoNeto = r.cr - r.cp;
     return {
@@ -879,22 +955,21 @@ function renderTablaMaterialesCosto() {
       varCoPct: r.cp ? varCostoNeto / r.cp : 0
     };
   });
-
-  // Ordenar de mayor impacto financiero negativo (sobrecosto absoluto) a menor/ahorro
   rows.sort((a, b) => b.varCostoNeto - a.varCostoNeto);
 
   document.getElementById('tabla-materiales-costo').innerHTML = rows.map(r => `
     <tr>
       <td style="color:var(--accent3); font-family:DM Sans; font-size:12px; font-weight:700">${r.material}</td>
-      <td>${fmt(r.planKG)} KG</td>
-      <td>${fmt(r.realKG)} KG</td>
+      <td>${fmt(r.planKG)}</td>
+      <td>${fmt(r.realKG)}</td>
       <td><span style="color:${r.varKGpct > 0 ? 'var(--negative)' : 'var(--positive)'}">${r.varKGpct >= 0 ? '+' : ''}${(r.varKGpct * 100).toFixed(2)}%</span></td>
       <td>${fmtCOP(r.cp)}</td>
       <td>${fmtCOP(r.cr)}</td>
       <td style="font-weight:600; color:${r.varCostoNeto > 0 ? 'var(--negative)' : 'var(--positive)'}">${fmtCostoExacto(r.varCostoNeto)}</td>
       <td><span class="pill ${r.varCoPct > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCoPct >= 0 ? '+' : ''}${(r.varCoPct * 100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCostoNeto > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCostoNeto > 0 ? '▲ Sobrecosto' : '▼ Ahorro'}</span></td>
-    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
+   </tr>`).join('') ||
+  '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
 }
 
 function buildOrdenRows() {
@@ -914,7 +989,7 @@ function buildOrdenRows() {
   return Array.from(ordenMap.values()).map(r => ({
     ...r,
     varKGpct:  r.plan ? (r.real - r.plan) / r.plan : 0,
-    varCoPct:  r.cp   ? (r.cr  - r.cp)   / r.cp   : 0,
+    varCoPct:  r.cp  ? (r.cr  - r.cp)    / r.cp   : 0,
   }));
 }
 
@@ -959,10 +1034,11 @@ function renderTablaOrden() {
   ordenTableState.page = Math.min(ordenTableState.page, totalPages);
   const start = (ordenTableState.page - 1) * pageSize;
   const pageRows = rows.slice(start, start + pageSize);
-  document.getElementById('orden-page-info').textContent =
+  document.getElementById('orden-page-info').textContent = 
     `${total === 0 ? 0 : start + 1}–${Math.min(start + pageSize, total)} de ${total.toLocaleString('es-CO')} órdenes`;
   document.getElementById('btn-prev-orden').disabled = ordenTableState.page <= 1;
   document.getElementById('btn-next-orden').disabled = ordenTableState.page >= totalPages;
+  
   document.querySelectorAll('#tabla-orden-table thead th.sortable').forEach(th => {
     th.classList.remove('asc', 'desc');
     if (th.dataset.col === sortCol) th.classList.add(sortDir);
@@ -973,14 +1049,15 @@ function renderTablaOrden() {
       <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea||'—'}</td>
       <td>${r.prod||'—'}</td>
       <td style="color:var(--text-muted);font-size:12px">${fmtFecha(r.fecha)}</td>
-      <td>${fmt(r.plan)} KG</td>
-      <td>${fmt(r.real)} KG</td>
+      <td>${fmt(r.plan)}</td>
+      <td>${fmt(r.real)}</td>
       <td><span style="color:${r.varKGpct>0?'var(--negative)':'var(--positive)'}">${r.varKGpct>=0?'+':''}${(r.varKGpct*100).toFixed(2)}%</span></td>
       <td>${fmtCOP(r.cp)}</td>
       <td>${fmtCOP(r.cr)}</td>
-      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
+      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}\">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
-    </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
+   </tr>`).join('') ||
+  '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
 }
 
 function renderAll() {
@@ -1000,4 +1077,9 @@ function renderAll() {
 </script>
 </body>
 </html>
+
+
+
+
+
 
