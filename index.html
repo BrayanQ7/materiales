@@ -281,7 +281,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 
   <div class="scorecards">
     <div class="card c1"><div class="card-label">Total Plan</div><div class="card-value" id="sc-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo planeado</div></div>
-    <div class="card c2"><div class="card-label">Total Real </div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
+    <div class="card c2"><div class="card-label">Total Real</div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
     <div class="card c3" id="card-var-kg-box"><div class="card-label">Variación</div><div class="card-value" id="sc-var-kg">—</div><div class="card-sub" id="sc-var-kg-pct">—</div></div>
     <div class="card c4"><div class="card-label">Costo Plan</div><div class="card-value" id="sc-costo-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Presupuesto total</div></div>
     <div class="card c5"><div class="card-label">Costo Real</div><div class="card-value" id="sc-costo-real">—</div><div class="card-sub" style="color:var(--text-muted)">Gasto real total</div></div>
@@ -334,31 +334,78 @@ footer p{font-size:12px;color:var(--text-muted)}
         <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Costo Real ($)</div>
       </div>
     </div>
+    
     <div class="chart-card col-12">
       <div class="chart-title">Detalle por Línea y Producto</div>
       <div class="chart-subtitle">Resumen agregado con indicadores de variación</div>
+      <div class="table-controls">
+        <div></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="page-info" id="detalle-page-info"></span>
+          <select class="page-size-select" id="detalle-page-size" onchange="detalleTableState.page=1;detalleTableState.pageSize=+this.value;renderTable()">
+            <option value="20" selected>20 / pág</option>
+            <option value="50">50 / pág</option>
+            <option value="100">100 / pág</option>
+            <option value="9999">Todos</option>
+          </select>
+          <div class="pagination">
+            <button class="btn-page" id="btn-prev-detalle" onclick="detalleTableState.page--;renderTable()">← Ant</button>
+            <button class="btn-page" id="btn-next-detalle" onclick="detalleTableState.page++;renderTable()">Sig →</button>
+          </div>
+        </div>
+      </div>
       <div class="table-wrap">
-        <table>
-          <thead><tr><th>Línea</th><th>Producto</th><th>Plan</th><th>Real</th><th>Var %</th><th>Costo Plan</th><th>Costo Real</th><th>Var Costo %</th><th>Estado</th></tr></thead>
+        <table id="tabla-detalle-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-col="linea" onclick="detalleSort('linea')">Línea</th>
+              <th class="sortable" data-col="prod" onclick="detalleSort('prod')">Producto</th>
+              <th class="sortable" data-col="plan" onclick="detalleSort('plan')">Plan</th>
+              <th class="sortable" data-col="real" onclick="detalleSort('real')">Real</th>
+              <th class="sortable" data-col="varKGpct" onclick="detalleSort('varKGpct')">Var %</th>
+              <th class="sortable" data-col="cp" onclick="detalleSort('cp')">Costo Plan</th>
+              <th class="sortable" data-col="cr" onclick="detalleSort('cr')">Costo Real</th>
+              <th class="sortable" data-col="varCoPct" onclick="detalleSort('varCoPct')">Var Costo %</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
           <tbody id="tabla-detalle"></tbody>
         </table>
       </div>
     </div>
+    
     <div class="chart-card col-12">
       <div class="chart-title">Detalle de Costos por Material</div>
       <div class="chart-subtitle">Consumo acumulado e impacto financiero indexado por tipo de material</div>
+      <div class="table-controls">
+        <div></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="page-info" id="materiales-page-info"></span>
+          <select class="page-size-select" id="materiales-page-size" onchange="materialesTableState.page=1;materialesTableState.pageSize=+this.value;renderTablaMaterialesCosto()">
+            <option value="20" selected>20 / pág</option>
+            <option value="50">50 / pág</option>
+            <option value="100">100 / pág</option>
+            <option value="9999">Todos</option>
+          </select>
+          <div class="pagination">
+            <button class="btn-page" id="btn-prev-materiales" onclick="materialesTableState.page--;renderTablaMaterialesCosto()">← Ant</button>
+            <button class="btn-page" id="btn-next-materiales" onclick="materialesTableState.page++;renderTablaMaterialesCosto()">Sig →</button>
+          </div>
+        </div>
+      </div>
       <div class="table-wrap">
-        <table>
+        <table id="tabla-materiales-table">
           <thead>
             <tr>
-              <th>Material / Componente</th>
-              <th>Plan</th>
-              <th>Real</th>
-              <th>Var %</th>
-              <th>Costo Plan</th>
-              <th>Costo Real</th>
-              <th>Var Costo ($)</th>
-              <th>Var Costo %</th>
+              <th class="sortable" data-col="material" onclick="materialesSort('material')">Material / Componente</th>
+              <th class="sortable" data-col="umb" onclick="materialesSort('umb')">UMB</th>
+              <th class="sortable" data-col="planKG" onclick="materialesSort('planKG')">Plan</th>
+              <th class="sortable" data-col="realKG" onclick="materialesSort('realKG')">Real</th>
+              <th class="sortable" data-col="varKGpct" onclick="materialesSort('varKGpct')">Var %</th>
+              <th class="sortable" data-col="cp" onclick="materialesSort('cp')">Costo Plan</th>
+              <th class="sortable" data-col="cr" onclick="materialesSort('cr')">Costo Real</th>
+              <th class="sortable" data-col="varCostoNeto" onclick="materialesSort('varCostoNeto')">Var Costo ($)</th>
+              <th class="sortable" data-col="varCoPct" onclick="materialesSort('varCoPct')">Var Costo %</th>
               <th>Estado</th>
             </tr>
           </thead>
@@ -366,6 +413,7 @@ footer p{font-size:12px;color:var(--text-muted)}
         </table>
       </div>
     </div>
+    
     <div class="chart-card col-12">
       <div class="chart-title">Detalle por Orden de Producción</div>
       <div class="chart-subtitle">Desglose individual por cada orden · Línea · Producto con indicadores de variación</div>
@@ -425,7 +473,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 </div>
 
 <script>
-const APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbxj1hwnLPc5A-t1TzwQoxSUHF4WNquEpa9Xj8hhPP9q0cDXa0mVT5O9lVDNgLpVgnYHgA/exec";
+const APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbwEby_jms2asAkmx_S4H7x79vxOEdjcU9S09iMMxI0Qxo5mnQ2XYRaB3NPdJaUEYWnk9w/exec";
 const OUTLIERS_MATERIALS = [
   "reproceso mezcla crema","desperdicio mezcla crema",
   "reproceso mezcla agua","desperdicio mezcla agua"
@@ -435,7 +483,12 @@ let filteredData = [];
 let charts = {};
 let selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
 const mesOrder = {ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+
+// Estados de ordenamiento y paginación para las tres tablas
 let ordenTableState = { page: 1, pageSize: 20, sortCol: 'fecha', sortDir: 'asc', rows: [] };
+let detalleTableState = { page: 1, pageSize: 20, sortCol: 'varCoPct', sortDir: 'desc', rows: [] };
+let materialesTableState = { page: 1, pageSize: 20, sortCol: 'varCostoNeto', sortDir: 'desc', rows: [] };
+
 const COLORS = { accent:'#00e5c3', accent2:'#6c9cff', accent3:'#ffd166', accent4:'#ff6b6b', pos:'#ff5252', neg:'#00c896', muted:'#7a8aaa' };
 
 Chart.defaults.color = '#7a8aaa';
@@ -528,7 +581,7 @@ function manejarError(msg) {
   errorDiv.innerHTML = `
     <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error en la Carga de la API Cloud</div>
     <div>Detalle del problema: <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#ffb03a;">${msg}</code></div>
-    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);
       Recomendaciones:<br>
       1. Asegúrate de estar logueado con tu correo de <strong>@meals.com.co</strong> en este navegador.<br>
       2. Revisa que la pestaña de tu Google Sheets se llame exactamente <strong>BD</strong> (en mayúsculas).<br>
@@ -543,8 +596,8 @@ function resetSelectionsObject() {
   selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
   document.getElementById('switch-outliers').checked = true;
   document.getElementById('switch-npdi').checked = true;
-  document.getElementById('switch-mezclas').checked = true; // Por defecto desactivado (no excluye)
-  document.getElementById('switch-reelaborado').checked = true; // Por defecto desactivado (no excluye)
+  document.getElementById('switch-mezclas').checked = true; 
+  document.getElementById('switch-reelaborado').checked = true; 
 }
 
 function populateFilters() {
@@ -685,7 +738,7 @@ function resetFilters() {
   renderAll();
 }
 
-function fmt(n) { return Math.round(n).toLocaleString('es-CO'); }
+function fmt(n) { return Number(n).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
 function fmtCOP(n) {
   if (n < 0) return '-$' + Math.abs(Math.round(n)).toLocaleString('es-CO');
   return '$' + Math.round(n).toLocaleString('es-CO');
@@ -901,7 +954,7 @@ function renderChartCostosMaterial() {
   });
 }
 
-function renderTable() {
+function buildDetalleRows() {
   const tableMap = {};
   filteredData.forEach(d => {
     const key = d.linea + '||' + d.producto;
@@ -913,14 +966,55 @@ function renderTable() {
     tableMap[key].cp += d.costoPlan;
     tableMap[key].cr += d.costoReal;
   });
-  const rows = Object.values(tableMap).map(r => ({
+  return Object.values(tableMap).map(r => ({
     ...r,
     varKGpct: r.plan ? (r.real - r.plan) / r.plan : 0,
     varCoPct: r.cp ? (r.cr - r.cp) / r.cp : 0
   }));
-  rows.sort((a,b)=>Math.abs(b.varCoPct)-Math.abs(a.varCoPct));
+}
+
+function detalleSort(col) {
+  if (detalleTableState.sortCol === col) {
+    detalleTableState.sortDir = detalleTableState.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    detalleTableState.sortCol = col;
+    detalleTableState.sortDir = 'desc';
+  }
+  detalleTableState.page = 1;
+  renderTable();
+}
+
+function renderTable() {
+  let rows = [...detalleTableState.rows];
+  const { sortCol, sortDir } = detalleTableState;
   
-  document.getElementById('tabla-detalle').innerHTML=rows.map(r=>`
+  rows.sort((a, b) => {
+    let va = a[sortCol]; let vb = b[sortCol];
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const total = rows.length;
+  const pageSize = detalleTableState.pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  detalleTableState.page = Math.min(detalleTableState.page, totalPages);
+  const start = (detalleTableState.page - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+
+  document.getElementById('detalle-page-info').textContent = 
+    `${total === 0 ? 0 : start + 1}–${Math.min(start + pageSize, total)} de ${total.toLocaleString('es-CO')} filas`;
+  document.getElementById('btn-prev-detalle').disabled = detalleTableState.page <= 1;
+  document.getElementById('btn-next-detalle').disabled = detalleTableState.page >= totalPages;
+
+  document.querySelectorAll('#tabla-detalle-table thead th.sortable').forEach(th => {
+    th.classList.remove('asc', 'desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir);
+  });
+
+  document.getElementById('tabla-detalle').innerHTML = pageRows.map(r => `
     <tr>
       <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea}</td>
       <td>${r.prod||'—'}</td>
@@ -931,22 +1025,26 @@ function renderTable() {
       <td>${fmtCOP(r.cr)}</td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
-   </tr>`).join('');
+   </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
 }
 
-function renderTablaMaterialesCosto() {
+// --- LOGICA DE DETALLE DE COSTOS POR MATERIAL (CON INTEGRACIÓN UMB) ---
+function buildMaterialesRows() {
   const matMap = {};
   filteredData.forEach(d => {
     const matKey = d.materialDesc || d.material || "Sin Nombre";
+    // Mapea la propiedad 'umb' inyectada desde Apps Script
+    const umbVal = d.umb || "—"; 
+    
     if (!matMap[matKey]) {
-      matMap[matKey] = { material: matKey, planKG: 0, realKG: 0, cp: 0, cr: 0 };
+      matMap[matKey] = { material: matKey, umb: umbVal, planKG: 0, realKG: 0, cp: 0, cr: 0 };
     }
     matMap[matKey].planKG += d.plan;
     matMap[matKey].realKG += d.real;
     matMap[matKey].cp += d.costoPlan;
     matMap[matKey].cr += d.costoReal;
   });
-  const rows = Object.values(matMap).map(r => {
+  return Object.values(matMap).map(r => {
     const varCostoNeto = r.cr - r.cp;
     return {
       ...r,
@@ -955,11 +1053,53 @@ function renderTablaMaterialesCosto() {
       varCoPct: r.cp ? varCostoNeto / r.cp : 0
     };
   });
-  rows.sort((a, b) => b.varCostoNeto - a.varCostoNeto);
+}
 
-  document.getElementById('tabla-materiales-costo').innerHTML = rows.map(r => `
+function materialesSort(col) {
+  if (materialesTableState.sortCol === col) {
+    materialesTableState.sortDir = materialesTableState.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    materialesTableState.sortCol = col;
+    materialesTableState.sortDir = 'desc';
+  }
+  materialesTableState.page = 1;
+  renderTablaMaterialesCosto();
+}
+
+function renderTablaMaterialesCosto() {
+  let rows = [...materialesTableState.rows];
+  const { sortCol, sortDir } = materialesTableState;
+
+  rows.sort((a, b) => {
+    let va = a[sortCol]; let vb = b[sortCol];
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const total = rows.length;
+  const pageSize = materialesTableState.pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  materialesTableState.page = Math.min(materialesTableState.page, totalPages);
+  const start = (materialesTableState.page - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+
+  document.getElementById('materiales-page-info').textContent = 
+    `${total === 0 ? 0 : start + 1}–${Math.min(start + pageSize, total)} de ${total.toLocaleString('es-CO')} materiales`;
+  document.getElementById('btn-prev-materiales').disabled = materialesTableState.page <= 1;
+  document.getElementById('btn-next-materiales').disabled = materialesTableState.page >= totalPages;
+
+  document.querySelectorAll('#tabla-materiales-table thead th.sortable').forEach(th => {
+    th.classList.remove('asc', 'desc');
+    if (th.dataset.col === sortCol) th.classList.add(sortDir);
+  });
+
+  document.getElementById('tabla-materiales-costo').innerHTML = pageRows.map(r => `
     <tr>
       <td style="color:var(--accent3); font-family:DM Sans; font-size:12px; font-weight:700">${r.material}</td>
+      <td style="color:var(--text-muted); font-size:12px; font-weight:500">${r.umb}</td>
       <td>${fmt(r.planKG)}</td>
       <td>${fmt(r.realKG)}</td>
       <td><span style="color:${r.varKGpct > 0 ? 'var(--negative)' : 'var(--positive)'}">${r.varKGpct >= 0 ? '+' : ''}${(r.varKGpct * 100).toFixed(2)}%</span></td>
@@ -968,8 +1108,7 @@ function renderTablaMaterialesCosto() {
       <td style="font-weight:600; color:${r.varCostoNeto > 0 ? 'var(--negative)' : 'var(--positive)'}">${fmtCostoExacto(r.varCostoNeto)}</td>
       <td><span class="pill ${r.varCoPct > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCoPct >= 0 ? '+' : ''}${(r.varCoPct * 100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCostoNeto > 0 ? 'pill-pos' : 'pill-neg'}">${r.varCostoNeto > 0 ? '▲ Sobrecosto' : '▼ Ahorro'}</span></td>
-   </tr>`).join('') ||
-  '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
+   </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
 }
 
 function buildOrdenRows() {
@@ -1054,7 +1193,7 @@ function renderTablaOrden() {
       <td><span style="color:${r.varKGpct>0?'var(--negative)':'var(--positive)'}">${r.varKGpct>=0?'+':''}${(r.varKGpct*100).toFixed(2)}%</span></td>
       <td>${fmtCOP(r.cp)}</td>
       <td>${fmtCOP(r.cr)}</td>
-      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}\">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
+      <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
    </tr>`).join('') ||
   '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
@@ -1068,15 +1207,20 @@ function renderAll() {
   renderChartMes();
   renderChartCostosBarras();
   renderChartCostosMaterial();
+  
+  detalleTableState.rows = buildDetalleRows();
   renderTable();
+  
+  materialesTableState.rows = buildMaterialesRows();
   renderTablaMaterialesCosto();
+  
   ordenTableState.rows = buildOrdenRows();
-  ordenTableState.page = 1;
   renderTablaOrden();
 }
 </script>
 </body>
 </html>
+
 
 
 
