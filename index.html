@@ -190,8 +190,9 @@ footer p{font-size:12px;color:var(--text-muted)}
         style="height:112px;width:auto;object-fit:contain;filter:brightness(1.05)"
         onerror="this.style.display='none'"
       />
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-wrap:wrap">
         <button class="btn-refresh" onclick="cargarDesdeAppsScript()">🔄 Sincronizar</button>
+        <span id="data-max-date" style="font-size:11px;color:var(--text-muted);font-family:'DM Sans',sans-serif;letter-spacing:.3px;"></span>
       </div>
     </div>
   </header>
@@ -281,7 +282,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 
   <div class="scorecards">
     <div class="card c1"><div class="card-label">Total Plan</div><div class="card-value" id="sc-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo planeado</div></div>
-    <div class="card c2"><div class="card-label">Total Real</div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
+    <div class="card c2"><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
     <div class="card c3" id="card-var-kg-box"><div class="card-label">Variación</div><div class="card-value" id="sc-var-kg">—</div><div class="card-sub" id="sc-var-kg-pct">—</div></div>
     <div class="card c4"><div class="card-label">Costo Plan</div><div class="card-value" id="sc-costo-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Presupuesto total</div></div>
     <div class="card c5"><div class="card-label">Costo Real</div><div class="card-value" id="sc-costo-real">—</div><div class="card-sub" style="color:var(--text-muted)">Gasto real total</div></div>
@@ -422,7 +423,7 @@ footer p{font-size:12px;color:var(--text-muted)}
           class="table-search"
           id="orden-search"
           type="text"
-          placeholder="🔍 Buscar por orden, línea o producto…"
+          placeholder="🔍 Buscar por orden, línea, producto o material…"
           oninput="ordenTableState.page=1; renderTablaOrden()"
         />
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -446,6 +447,7 @@ footer p{font-size:12px;color:var(--text-muted)}
               <th class="sortable" data-col="orden" onclick="ordenSort('orden')">Orden</th>
               <th class="sortable" data-col="linea" onclick="ordenSort('linea')">Línea</th>
               <th class="sortable" data-col="prod" onclick="ordenSort('prod')">Producto</th>
+              <th style="max-width:280px; min-width:180px;">Materiales Usados</th>
               <th class="sortable" data-col="fecha" onclick="ordenSort('fecha')">Fecha</th>
               <th class="sortable" data-col="plan" onclick="ordenSort('plan')">Plan</th>
               <th class="sortable" data-col="real" onclick="ordenSort('real')">Real</th>
@@ -484,7 +486,6 @@ let charts = {};
 let selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
 const mesOrder = {ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
 
-// Estados de ordenamiento y paginación para las tres tablas
 let ordenTableState = { page: 1, pageSize: 20, sortCol: 'fecha', sortDir: 'asc', rows: [] };
 let detalleTableState = { page: 1, pageSize: 20, sortCol: 'varCoPct', sortDir: 'desc', rows: [] };
 let materialesTableState = { page: 1, pageSize: 20, sortCol: 'varCostoNeto', sortDir: 'desc', rows: [] };
@@ -496,19 +497,49 @@ Chart.defaults.borderColor = '#252e45';
 Chart.defaults.font.family = 'DM Sans';
 
 window.addEventListener('DOMContentLoaded', cargarDesdeAppsScript);
+
 window.addEventListener('click', function(e) {
   if (!e.target.closest('.custom-dropdown')) {
-    document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.custom-dropdown').forEach(d => {
+      if (d.classList.contains('active')) {
+        const searchInput = d.querySelector('.dropdown-search');
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.dispatchEvent(new Event('input'));
+        }
+        d.classList.remove('active');
+      }
+    });
   }
 });
 
 function toggleDropdown(id) {
   const el = document.getElementById(id);
   const wasActive = el.classList.contains('active');
-  document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('active'));
+  
+  document.querySelectorAll('.custom-dropdown').forEach(d => {
+    if (d.classList.contains('active') && d.id !== id) {
+      const searchInput = d.querySelector('.dropdown-search');
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input'));
+      }
+    }
+    d.classList.remove('active');
+  });
+
   if (!wasActive) {
     el.classList.add('active');
-    setTimeout(() => { const s = el.querySelector('.dropdown-search'); if(s) s.focus(); }, 50);
+    setTimeout(() => { 
+      const s = el.querySelector('.dropdown-search'); 
+      if(s) s.focus(); 
+    }, 50);
+  } else {
+    const searchInput = el.querySelector('.dropdown-search');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.dispatchEvent(new Event('input'));
+    }
   }
 }
 
@@ -557,17 +588,30 @@ function cargarDesdeAppsScript() {
     .then(res => {
       if (res.error) throw new Error(res.error);
       
-      rawData = res.datos.map(d => ({
-        ...d,
-        fecha: d.fecha ? new Date(d.fecha) : null
-      }));
+      let maxDateObj = null;
+
+      rawData = res.datos.map(d => {
+        let fObj = d.fecha ? new Date(String(d.fecha).replace(/-/g, '/')) : null;
+        if (fObj && (!maxDateObj || fObj > maxDateObj)) {
+          maxDateObj = fObj;
+        }
+        return {
+          ...d,
+          fecha: fObj
+        };
+      });
+      
+      if (maxDateObj) {
+        document.getElementById('data-max-date').textContent = `Datos hasta: ${fmtFecha(maxDateObj)}`;
+      } else {
+        document.getElementById('data-max-date').textContent = '';
+      }
       
       Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
       filteredData = [...rawData];
       document.getElementById('loading-overlay').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
       resetSelectionsObject();
-      populateFilters();
       applyFilters();
     })
     .catch(err => manejarError(err.message));
@@ -581,7 +625,7 @@ function manejarError(msg) {
   errorDiv.innerHTML = `
     <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error en la Carga de la API Cloud</div>
     <div>Detalle del problema: <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#ffb03a;">${msg}</code></div>
-    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);
+    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
       Recomendaciones:<br>
       1. Asegúrate de estar logueado con tu correo de <strong>@meals.com.co</strong> en este navegador.<br>
       2. Revisa que la pestaña de tu Google Sheets se llame exactamente <strong>BD</strong> (en mayúsculas).<br>
@@ -592,8 +636,10 @@ function manejarError(msg) {
   console.error(msg);
 }
 
+// CORRECCIÓN AQUÍ: Ahora también actualiza visualmente los elementos del DOM (.checked = true)
 function resetSelectionsObject() {
   selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
+  
   document.getElementById('switch-outliers').checked = true;
   document.getElementById('switch-npdi').checked = true;
   document.getElementById('switch-mezclas').checked = true; 
@@ -626,20 +672,23 @@ function populateFilters() {
       if (excludeMezclas && String(d.linea).toUpperCase() === 'MEZCLAS') return false;
       if (excludeReelaborado && String(d.linea).toUpperCase() === 'REELABORADO') return false;
 
-      const matchLinea    = spec.key === 'linea'    || selections.linea.includes('all')    || selections.linea.includes(d.linea);
-      const matchMes      = spec.key === 'mes'      || selections.mes.includes('all')      || selections.mes.includes(d.mes);
-      const matchTipo     = spec.key === 'tipo'     || selections.tipo.includes('all')     || selections.tipo.includes(d.tipo);
-      const matchProducto = spec.key === 'producto' || selections.producto.includes('all') || selections.producto.includes(d.producto);
-      const matchMaterial = spec.key === 'material' || selections.material.includes('all') || selections.material.includes(d.materialDesc || d.material);
-      const matchOrden    = spec.key === 'orden'    || selections.orden.includes('all')    || selections.orden.includes(d.orden);
-      return matchLinea && matchMes && matchTipo && matchProducto && matchMaterial && matchOrden;
+      const mMat = d.materialDesc || d.material;
+
+      if (spec.key !== 'linea'    && !selections.linea.includes('all')    && !selections.linea.includes(d.linea)) return false;
+      if (spec.key !== 'mes'      && !selections.mes.includes('all')      && !selections.mes.includes(d.mes)) return false;
+      if (spec.key !== 'tipo'     && !selections.tipo.includes('all')     && !selections.tipo.includes(d.tipo)) return false;
+      if (spec.key !== 'producto' && !selections.producto.includes('all') && !selections.producto.includes(d.producto)) return false;
+      if (spec.key !== 'material' && !selections.material.includes('all') && !selections.material.includes(mMat)) return false;
+      if (spec.key !== 'orden'    && !selections.orden.includes('all')    && !selections.orden.includes(d.orden)) return false;
+
+      return true;
     });
 
     let uniqueItems = [...new Set(validDataForThisFilter.map(d => spec.key === 'material' ? (d.materialDesc || d.material) : d[spec.key]))].filter(Boolean);
     if (spec.sortFn) uniqueItems.sort(spec.sortFn);
     else uniqueItems.sort();
 
-    let currentKeys = selections[spec.key];
+    let currentKeys = selections[spec.key] || ['all'];
     const existingSearch = menu.querySelector('.dropdown-search');
     const searchTerm = existingSearch ? existingSearch.value.toLowerCase() : '';
     
@@ -692,7 +741,7 @@ function handleCheckboxChange(e, key, value) {
   e.stopPropagation();
   const checkbox = e.currentTarget.querySelector('input');
   if(e.target.tagName !== 'INPUT') checkbox.checked = !checkbox.checked;
-  let currentValues = selections[key];
+  let currentValues = selections[key] || ['all'];
   if (value === 'all') {
     selections[key] = ['all'];
   } else {
@@ -720,11 +769,13 @@ function applyFilters() {
     if (excludeMezclas && String(d.linea).toUpperCase() === 'MEZCLAS') return false;
     if (excludeReelaborado && String(d.linea).toUpperCase() === 'REELABORADO') return false;
 
+    const mMat = d.materialDesc || d.material;
+
     return (selections.linea.includes('all')    || selections.linea.includes(d.linea)) &&
           (selections.mes.includes('all')       || selections.mes.includes(d.mes)) &&
           (selections.tipo.includes('all')      || selections.tipo.includes(d.tipo)) &&
           (selections.producto.includes('all')  || selections.producto.includes(d.producto)) &&
-          (selections.material.includes('all')  || selections.material.includes(d.materialDesc || d.material)) &&
+          (selections.material.includes('all')  || selections.material.includes(mMat)) &&
           (selections.orden.includes('all')     || selections.orden.includes(d.orden));
   });
   populateFilters();
@@ -733,9 +784,7 @@ function applyFilters() {
 
 function resetFilters() {
   resetSelectionsObject();
-  filteredData = [...rawData];
-  populateFilters();
-  renderAll();
+  applyFilters(); // Forzamos la reevaluación con los estados reales
 }
 
 function fmt(n) { return Number(n).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
@@ -825,7 +874,15 @@ function renderChartKgProducto() {
     ]},
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`}}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            title:ctx => sortedProds[ctx[0].dataIndex],
+            label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`
+          }
+        }
+      },
       scales:{
         x:{grid:{color:'#252e45'},ticks:{font:{family:'DM Sans',size:10},maxRotation:30,minRotation:20}},
         y:{grid:{color:'#252e45'},ticks:{callback:v=>fmt(v),font:{size:10}}}
@@ -846,7 +903,7 @@ function renderChartMaterial() {
   const matData = Object.keys(matMap).map(m => {
     const plan = matMap[m].plan;
     const real = matMap[m].real;
-    return { label: m.length>24?m.slice(0,24)+'…':m, pct: plan ? ((real-plan)/plan)*100 : 0 };
+    return { completo: m, label: m.length>24?m.slice(0,24)+'…':m, pct: plan ? ((real-plan)/plan)*100 : 0 };
   });
   matData.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   const top = matData.slice(0,10);
@@ -857,7 +914,15 @@ function renderChartMaterial() {
       backgroundColor:top.map(d=>d.pct>0?'rgba(255,82,82,.75)':'rgba(0,200,150,.75)'),
       borderColor:top.map(d=>d.pct>0?COLORS.pos:COLORS.neg),borderWidth:1.5,borderRadius:5}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Variación: ${ctx.parsed.x>=0?'+':''}${ctx.parsed.x.toFixed(2)}%`}}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            title:ctx => top[ctx[0].dataIndex].completo,
+            label:ctx=>` Variación: ${ctx.parsed.x>=0?'+':''}${ctx.parsed.x.toFixed(2)}%`
+          }
+        }
+      },
       scales:{x:{grid:{color:'#252e45'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
   });
 }
@@ -912,7 +977,15 @@ function renderChartCostosBarras() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } },
+      plugins: { 
+        legend: { display: false }, 
+        tooltip: { 
+          callbacks: { 
+            title: ctx => topCategories[ctx[0].dataIndex],
+            label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` 
+          } 
+        } 
+      },
       scales: {
         x: { grid: { color: '#252e45' }, ticks: { font: { size: 10 }, maxRotation: 30, minRotation: 30 } },
         y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } }
@@ -945,7 +1018,15 @@ function renderChartCostosMaterial() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` } } },
+      plugins: { 
+        legend: { display: false }, 
+        tooltip: { 
+          callbacks: { 
+            title: ctx => topCategories[ctx[0].dataIndex],
+            label: (ctx) => ` ${ctx.dataset.label}: ${fmtCOP(ctx.parsed.y)}` 
+          } 
+        } 
+      },
       scales: {
         x: { grid: { color: '#252e45' }, ticks: { font: { size: 10 }, maxRotation: 30, minRotation: 30 } },
         y: { grid: { color: '#252e45' }, ticks: { callback: (v) => '$' + fmt(v) } }
@@ -1028,12 +1109,10 @@ function renderTable() {
    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px">Sin registros</td></tr>';
 }
 
-// --- LOGICA DE DETALLE DE COSTOS POR MATERIAL (CON INTEGRACIÓN UMB) ---
 function buildMaterialesRows() {
   const matMap = {};
   filteredData.forEach(d => {
     const matKey = d.materialDesc || d.material || "Sin Nombre";
-    // Mapea la propiedad 'umb' inyectada desde Apps Script
     const umbVal = d.umb || "—"; 
     
     if (!matMap[matKey]) {
@@ -1115,18 +1194,34 @@ function buildOrdenRows() {
   const ordenMap = new Map();
   filteredData.forEach(d => {
     if (!d.orden) return;
+    
+    const matName = d.materialDesc || d.material || "";
+    
     if (!ordenMap.has(d.orden)) {
-      ordenMap.set(d.orden, { orden: d.orden, linea: d.linea, prod: d.producto, fecha: d.fecha, plan: 0, real: 0, cp: 0, cr: 0 });
+      ordenMap.set(d.orden, { 
+        orden: d.orden, 
+        linea: d.linea, 
+        prod: d.producto, 
+        fecha: d.fecha, 
+        plan: 0, 
+        real: 0, 
+        cp: 0, 
+        cr: 0,
+        materialesSet: new Set()
+      });
     }
     const r = ordenMap.get(d.orden);
     r.plan += d.plan;
     r.real += d.real;
     r.cp   += d.costoPlan;
     r.cr   += d.costoReal;
+    if (matName) r.materialesSet.add(matName);
     if (d.fecha && (!r.fecha || d.fecha < r.fecha)) r.fecha = d.fecha;
   });
+  
   return Array.from(ordenMap.values()).map(r => ({
     ...r,
+    materialesConcat: Array.from(r.materialesSet).join(', '),
     varKGpct:  r.plan ? (r.real - r.plan) / r.plan : 0,
     varCoPct:  r.cp  ? (r.cr  - r.cp)    / r.cp   : 0,
   }));
@@ -1150,6 +1245,7 @@ function renderTablaOrden() {
     (r.orden  || '').toLowerCase().includes(search) ||
     (r.linea  || '').toLowerCase().includes(search) ||
     (r.prod   || '').toLowerCase().includes(search) ||
+    (r.materialesConcat || '').toLowerCase().includes(search) ||
     (r.fecha ? fmtFecha(r.fecha).toLowerCase().includes(search) : false)
   );
   const { sortCol, sortDir } = ordenTableState;
@@ -1187,6 +1283,9 @@ function renderTablaOrden() {
       <td style="color:var(--accent2);font-family:DM Sans;font-size:12px;font-weight:700;letter-spacing:.5px">${r.orden||'—'}</td>
       <td style="color:var(--accent);font-family:DM Sans;font-size:12px;font-weight:700">${r.linea||'—'}</td>
       <td>${r.prod||'—'}</td>
+      <td style="max-width:280px; min-width:180px; white-space:normal; font-size:11px; color:var(--text-muted); line-height:1.4; word-break:break-word;">
+        ${r.materialesConcat||'—'}
+      </td>
       <td style="color:var(--text-muted);font-size:12px">${fmtFecha(r.fecha)}</td>
       <td>${fmt(r.plan)}</td>
       <td>${fmt(r.real)}</td>
@@ -1196,7 +1295,7 @@ function renderTablaOrden() {
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>=0?'+':''}${(r.varCoPct*100).toFixed(2)}%</span></td>
       <td><span class="pill ${r.varCoPct>0?'pill-pos':'pill-neg'}">${r.varCoPct>0?'▲ Sobrecosto':'▼ Ahorro'}</span></td>
    </tr>`).join('') ||
-  '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
+  '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:24px">Sin resultados</td></tr>';
 }
 
 function renderAll() {
