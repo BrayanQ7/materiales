@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Variación de Materiales </title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<!-- Librería para leer archivos CSV en tiempo récord -->
+<!-- Librería PapaParse para parsear el archivo CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -177,7 +177,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 <body>
 <div id="loading-overlay">
   <div class="spinner"></div>
-  <div class="loading-text" id="loading-text">Cargando datos desde Excel Web…</div>
+  <div class="loading-text" id="loading-text">Cargando datos… Son muchos..</div>
 </div>
 <div id="dashboard">
   <header>
@@ -193,7 +193,7 @@ footer p{font-size:12px;color:var(--text-muted)}
         onerror="this.style.display='none'"
       />
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-wrap:wrap">
-        <button class="btn-refresh" onclick="cargarDesdeAppsScript()">🔄 Sincronizar</button>
+        <button class="btn-refresh" onclick="cargarDesdeCSV()">🔄 Cargar datos.csv</button>
         <span id="data-max-date" style="font-size:11px;color:var(--text-muted);font-family:'DM Sans',sans-serif;letter-spacing:.3px;"></span>
       </div>
     </div>
@@ -474,7 +474,7 @@ footer p{font-size:12px;color:var(--text-muted)}
   </div>
   <footer>
     <p id="footer-info">Dashboard · Variación de Materiales · 2026</p>
-    <p><span class="dot-live"></span>Conectado con Excel Web / SharePoint</p>
+    <p><span class="dot-live"></span>Conectado a datos.csv local</p>
   </footer>
   <div style="text-align:right;padding:14px 0 36px;margin-top:4px">
     <p style="font-family:'Georgia',serif;font-size:12px;color:var(--text-muted);letter-spacing:.4px;font-style:italic">
@@ -484,9 +484,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 </div>
 
 <script>
-// URL configurada con tu enlace directo de SharePoint
-const EXCEL_WEB_CSV_URL = "https://serviciosnutresa-my.sharepoint.com/:x:/g/personal/bdquiroga_meals_com_co/IQCK3nt1cHiXR50vk4FEx6ObAYUAnr_RjcD7hfLCgYH4fMs?e=z7d7lQ&download=1";
-
+const CSV_FILE_PATH = "datos.csv";
 const OUTLIERS_MATERIALS = [
   "reproceso mezcla crema","desperdicio mezcla crema",
   "reproceso mezcla agua","desperdicio mezcla agua"
@@ -507,7 +505,7 @@ Chart.defaults.color = '#7a8aaa';
 Chart.defaults.borderColor = '#252e45';
 Chart.defaults.font.family = 'DM Sans';
 
-window.addEventListener('DOMContentLoaded', cargarDesdeAppsScript);
+window.addEventListener('DOMContentLoaded', cargarDesdeCSV);
 
 window.addEventListener('click', function(e) {
   if (!e.target.closest('.custom-dropdown')) {
@@ -594,54 +592,49 @@ function toggleCintasSwitch(e) {
   }
 }
 
-// NUEVA FUNCIÓN OPTIMIZADA PARA CONECTAR A EXCEL WEB (PAPA PARSE)
-function cargarDesdeAppsScript() {
+function cargarDesdeCSV() {
   document.getElementById('loading-overlay').style.display = 'flex';
   document.getElementById('error-msg').style.display = 'none';
 
-  Papa.parse(EXCEL_WEB_CSV_URL, {
+  Papa.parse(CSV_FILE_PATH, {
     download: true,
     header: true,
-    dynamicTyping: true,
     skipEmptyLines: true,
     complete: function(results) {
-      if (results.errors.length > 0 && results.data.length === 0) {
-        manejarError("No se pudieron leer las columnas de la hoja CSV en SharePoint.");
+      if (results.errors && results.errors.length > 0 && results.data.length === 0) {
+        manejarError("No se pudo cargar o parsear el archivo datos.csv. Revisa si existe en la misma ubicación del archivo HTML.");
         return;
       }
-
+      
       let maxDateObj = null;
 
       rawData = results.data.map(d => {
-        let rawFecha = d.fecha || d.Fecha || d.FECHA;
-        let fObj = rawFecha ? new Date(String(rawFecha).replace(/-/g, '/')) : null;
-        if (fObj && (!maxDateObj || fObj > maxDateObj)) {
+        const planNum = parseFloat(String(d.plan || 0).replace(',', '.')) || 0;
+        const realNum = parseFloat(String(d.real || 0).replace(',', '.')) || 0;
+        const costoPlanNum = parseFloat(String(d.costoPlan || 0).replace(',', '.')) || 0;
+        const costoRealNum = parseFloat(String(d.costoReal || 0).replace(',', '.')) || 0;
+
+        let fObj = d.fecha ? new Date(String(d.fecha).replace(/-/g, '/')) : null;
+        if (fObj && !isNaN(fObj) && (!maxDateObj || fObj > maxDateObj)) {
           maxDateObj = fObj;
         }
 
         return {
-          orden: d.orden || d.Orden || d.ORDEN || '',
-          linea: d.linea || d.Linea || d.LINEA || '',
-          mes: String(d.mes || d.Mes || d.MES || '').toLowerCase(),
-          tipo: d.tipo || d.Tipo || d.TIPO || '',
-          producto: d.producto || d.Producto || d.PRODUCTO || '',
-          material: d.material || d.Material || d.MATERIAL || '',
-          materialDesc: d.materialDesc || d.MaterialDesc || d.MATERIALDESC || d.material || d.Material || '',
-          plan: Number(d.plan || d.Plan || d.PLAN) || 0,
-          real: Number(d.real || d.Real || d.REAL) || 0,
-          costoPlan: Number(d.costoPlan || d.CostoPlan || d.COSTOPLAN) || 0,
-          costoReal: Number(d.costoReal || d.CostoReal || d.COSTOREAL) || 0,
-          umb: d.umb || d.Umb || d.UMB || '—',
-          fecha: fObj
+          ...d,
+          plan: planNum,
+          real: realNum,
+          costoPlan: costoPlanNum,
+          costoReal: costoRealNum,
+          fecha: (fObj && !isNaN(fObj)) ? fObj : null
         };
       });
-
+      
       if (maxDateObj) {
         document.getElementById('data-max-date').textContent = `Datos hasta: ${fmtFecha(maxDateObj)}`;
       } else {
         document.getElementById('data-max-date').textContent = '';
       }
-
+      
       Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
       filteredData = [...rawData];
       document.getElementById('loading-overlay').style.display = 'none';
@@ -650,7 +643,7 @@ function cargarDesdeAppsScript() {
       applyFilters();
     },
     error: function(err) {
-      manejarError("Error de descarga desde SharePoint/Excel Web: " + err);
+      manejarError("Error de lectura: " + err);
     }
   });
 }
@@ -661,13 +654,13 @@ function manejarError(msg) {
   
   const errorDiv = document.getElementById('error-msg');
   errorDiv.innerHTML = `
-    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error al conectar con Excel Web (SharePoint)</div>
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error en la Carga del archivo CSV</div>
     <div>Detalle del problema: <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#ffb03a;">${msg}</code></div>
     <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
-      Sugerencias de resolución:<br>
-      1. Asegúrate de tener sesión iniciada en la red de <strong>Nutresa / Meals</strong> en este navegador.<br>
-      2. Revisa que el archivo de Excel esté guardado en formato <strong>.CSV</strong> dentro de SharePoint.<br>
-      3. Si aparece bloqueo CORS, debes verificar que el permiso del archivo permita acceso por enlace.
+      Recomendaciones:<br>
+      1. Asegúrate de que el archivo <strong>datos.csv</strong> exista en la misma ubicación del archivo <strong>index.html</strong>.<br>
+      2. Abre la página mediante un servidor web local (Live Server o puerto HTTP local) para evitar restricciones de seguridad CORS del navegador.<br>
+      3. Revisa que el encabezado del archivo CSV tenga las columnas correspondientes.
     </div>
   `;
   errorDiv.style.display = 'block';
