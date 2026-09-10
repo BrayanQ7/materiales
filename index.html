@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard · Variación de Materiales</title>
+<title>Dashboard · Variación de Materiales </title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<!-- Librería PapaParse para parsear archivos CSV seleccionados -->
+<!-- Librería PapaParse para parsear el archivo CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -19,16 +19,10 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,195,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,195,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-
-/* Overlay de bienvenida y carga manual */
-#upload-overlay{position:fixed;inset:0;z-index:200;background:rgba(11,15,26,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:20px;text-align:center}
-.upload-card{background:var(--surface);border:1px solid var(--border);padding:40px;border-radius:20px;max-width:480px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.6);display:flex;flex-direction:column;align-items:center;gap:16px}
-.upload-icon{font-size:48px;margin-bottom:8px}
-.upload-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--text)}
-.upload-desc{font-size:13px;color:var(--text-muted);line-height:1.5}
-.btn-upload{background:var(--accent);color:#0b0f1a;padding:12px 24px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;border:none;display:inline-flex;align-items:center;gap:8px}
-.btn-upload:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,229,195,0.3)}
-
+#loading-overlay{position:fixed;inset:0;z-index:200;background:rgba(11,15,26,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'Syne',sans-serif;font-size:13px;color:var(--text-muted);letter-spacing:1px}
 #dashboard{display:none;position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:10px 24px 10px}
 header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:16px}
 .header-left h1{font-family:'Georgia',sans-serif;font-size:clamp(32px,4vw,90px);font-weight:800;line-height:1.1;letter-spacing:-1px}
@@ -47,10 +41,36 @@ header{display:flex;align-items:flex-end;justify-content:space-between;margin-bo
   position: relative;
   z-index: 10;
 }
-.filters-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; }
-.filter-group{ display:flex; flex-direction:column; gap:4px; flex: 1; min-width: 180px; position:relative; }
-.filter-actions { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; width: 100%; flex-wrap: wrap; gap: 16px; }
-.switches-group { display: flex; gap: 24px; flex-wrap: wrap; }
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+.filter-group{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  flex: 1;
+  min-width: 180px;
+  position:relative;
+}
+.filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 4px;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.switches-group {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
 .filters label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-family:'DM Sans',sans-serif;margin-bottom:4px}
 .custom-dropdown { position: relative; width: 100%; }
 .dropdown-trigger {
@@ -155,26 +175,15 @@ footer p{font-size:12px;color:var(--text-muted)}
 </style>
 </head>
 <body>
-
-<!-- Pantalla Inicial para Seleccionar CSV -->
-<div id="upload-overlay">
-  <div class="upload-card">
-    <div class="upload-icon">📊</div>
-    <div class="upload-title">Cargar datos.csv</div>
-    <div class="upload-desc">Selecciona tu archivo <strong>datos.csv</strong> desde tu computadora para inicializar el Dashboard de Variación de Materiales.</div>
-    <label class="btn-upload">
-      📁 Seleccionar Archivo CSV
-      <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="cargarArchivoLocal(event)">
-    </label>
-    <div id="upload-status" style="font-size:12px; color:var(--accent); font-weight:600; display:none;">Procesando archivo...</div>
-  </div>
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Cargando datos… Son muchos..</div>
 </div>
-
 <div id="dashboard">
   <header>
     <div class="header-left">
       <h1>Análisis de <span>Variación</span><br>de Materiales</h1>
-      <p id="header-sub">Consumo Planeado vs. Consumo Real</p>
+      <p id="header-sub">Consumo Planeado vs. Consumo Real </p>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:12px">
       <img
@@ -184,10 +193,7 @@ footer p{font-size:12px;color:var(--text-muted)}
         onerror="this.style.display='none'"
       />
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-wrap:wrap">
-        <label class="btn-refresh">
-          🔄 Cambiar CSV
-          <input type="file" accept=".csv" style="display:none" onchange="cargarArchivoLocal(event)">
-        </label>
+        <button class="btn-refresh" onclick="cargarDesdeCSV()">🔄 Cargar datos.csv</button>
         <span id="data-max-date" style="font-size:11px;color:var(--text-muted);font-family:'DM Sans',sans-serif;letter-spacing:.3px;"></span>
       </div>
     </div>
@@ -468,7 +474,7 @@ footer p{font-size:12px;color:var(--text-muted)}
   </div>
   <footer>
     <p id="footer-info">Dashboard · Variación de Materiales · 2026</p>
-    <p><span class="dot-live"></span>Archivo cargado manualmente</p>
+    <p><span class="dot-live"></span>Conectado a datos.csv local</p>
   </footer>
   <div style="text-align:right;padding:14px 0 36px;margin-top:4px">
     <p style="font-family:'Georgia',serif;font-size:12px;color:var(--text-muted);letter-spacing:.4px;font-style:italic">
@@ -478,6 +484,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 </div>
 
 <script>
+const CSV_FILE_PATH = "datos.csv";
 const OUTLIERS_MATERIALS = [
   "reproceso mezcla crema","desperdicio mezcla crema",
   "reproceso mezcla agua","desperdicio mezcla agua"
@@ -497,6 +504,8 @@ const COLORS = { accent:'#00e5c3', accent2:'#6c9cff', accent3:'#ffd166', accent4
 Chart.defaults.color = '#7a8aaa';
 Chart.defaults.borderColor = '#252e45';
 Chart.defaults.font.family = 'DM Sans';
+
+window.addEventListener('DOMContentLoaded', cargarDesdeCSV);
 
 window.addEventListener('click', function(e) {
   if (!e.target.closest('.custom-dropdown')) {
@@ -583,21 +592,17 @@ function toggleCintasSwitch(e) {
   }
 }
 
-// Nueva lógica: Lee directamente el archivo local seleccionado por el usuario
-function cargarArchivoLocal(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+function cargarDesdeCSV() {
+  document.getElementById('loading-overlay').style.display = 'flex';
+  document.getElementById('error-msg').style.display = 'none';
 
-  const statusEl = document.getElementById('upload-status');
-  if (statusEl) statusEl.style.display = 'block';
-
-  Papa.parse(file, {
+  Papa.parse(CSV_FILE_PATH, {
+    download: true,
     header: true,
     skipEmptyLines: true,
     complete: function(results) {
       if (results.errors && results.errors.length > 0 && results.data.length === 0) {
-        alert("Ocurrió un error al leer el archivo CSV. Revisa el formato.");
-        if (statusEl) statusEl.style.display = 'none';
+        manejarError("No se pudo cargar o parsear el archivo datos.csv. Revisa si existe en la misma ubicación del archivo HTML.");
         return;
       }
       
@@ -632,19 +637,34 @@ function cargarArchivoLocal(event) {
       
       Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
       filteredData = [...rawData];
-      
-      // Ocultar modal de carga y mostrar dashboard
-      document.getElementById('upload-overlay').style.display = 'none';
+      document.getElementById('loading-overlay').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
-      
       resetSelectionsObject();
       applyFilters();
     },
     error: function(err) {
-      alert("Error al leer el archivo: " + err);
-      if (statusEl) statusEl.style.display = 'none';
+      manejarError("Error de lectura: " + err);
     }
   });
+}
+
+function manejarError(msg) {
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  
+  const errorDiv = document.getElementById('error-msg');
+  errorDiv.innerHTML = `
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error en la Carga del archivo CSV</div>
+    <div>Detalle del problema: <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#ffb03a;">${msg}</code></div>
+    <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+      Recomendaciones:<br>
+      1. Asegúrate de que el archivo <strong>datos.csv</strong> exista en la misma ubicación del archivo <strong>index.html</strong>.<br>
+      2. Abre la página mediante un servidor web local (Live Server o puerto HTTP local) para evitar restricciones de seguridad CORS del navegador.<br>
+      3. Revisa que el encabezado del archivo CSV tenga las columnas correspondientes.
+    </div>
+  `;
+  errorDiv.style.display = 'block';
+  console.error(msg);
 }
 
 function resetSelectionsObject() {
