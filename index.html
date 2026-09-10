@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Variación de Materiales </title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Librería para leer archivos CSV en tiempo récord -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -175,7 +177,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 <body>
 <div id="loading-overlay">
   <div class="spinner"></div>
-  <div class="loading-text" id="loading-text">Cargando datos… Son muchos..</div>
+  <div class="loading-text" id="loading-text">Cargando datos desde Excel Web…</div>
 </div>
 <div id="dashboard">
   <header>
@@ -275,6 +277,13 @@ footer p{font-size:12px;color:var(--text-muted)}
             <span class="slider"></span>
           </label>
         </div>
+        <div class="switch-container" onclick="toggleCintasSwitch(event)">
+          <span class="switch-label">INCLUIR CINTAS</span>
+          <label class="switch">
+            <input type="checkbox" id="switch-cintas" checked onchange="applyFilters()">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
       <button class="btn-reset" onclick="resetFilters()">↺ Limpiar filtros</button>
     </div>
@@ -282,7 +291,7 @@ footer p{font-size:12px;color:var(--text-muted)}
 
   <div class="scorecards">
     <div class="card c1"><div class="card-label">Total Plan</div><div class="card-value" id="sc-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo planeado</div></div>
-    <div class="card c2"><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
+    <div class="card c2"><div class="card-label">Total Real</div><div class="card-value" id="sc-real">—</div><div class="card-sub" style="color:var(--text-muted)">Consumo real</div></div>
     <div class="card c3" id="card-var-kg-box"><div class="card-label">Variación</div><div class="card-value" id="sc-var-kg">—</div><div class="card-sub" id="sc-var-kg-pct">—</div></div>
     <div class="card c4"><div class="card-label">Costo Plan</div><div class="card-value" id="sc-costo-plan">—</div><div class="card-sub" style="color:var(--text-muted)">Presupuesto total</div></div>
     <div class="card c5"><div class="card-label">Costo Real</div><div class="card-value" id="sc-costo-real">—</div><div class="card-sub" style="color:var(--text-muted)">Gasto real total</div></div>
@@ -465,7 +474,7 @@ footer p{font-size:12px;color:var(--text-muted)}
   </div>
   <footer>
     <p id="footer-info">Dashboard · Variación de Materiales · 2026</p>
-    <p><span class="dot-live"></span>Conectado mediante Google Web </p>
+    <p><span class="dot-live"></span>Conectado con Excel Web / SharePoint</p>
   </footer>
   <div style="text-align:right;padding:14px 0 36px;margin-top:4px">
     <p style="font-family:'Georgia',serif;font-size:12px;color:var(--text-muted);letter-spacing:.4px;font-style:italic">
@@ -475,7 +484,9 @@ footer p{font-size:12px;color:var(--text-muted)}
 </div>
 
 <script>
-const APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbwEby_jms2asAkmx_S4H7x79vxOEdjcU9S09iMMxI0Qxo5mnQ2XYRaB3NPdJaUEYWnk9w/exec";
+// URL configurada con tu enlace directo de SharePoint
+const EXCEL_WEB_CSV_URL = "https://serviciosnutresa-my.sharepoint.com/:x:/g/personal/bdquiroga_meals_com_co/IQCK3nt1cHiXR50vk4FEx6ObAYUAnr_RjcD7hfLCgYH4fMs?e=z7d7lQ&download=1";
+
 const OUTLIERS_MATERIALS = [
   "reproceso mezcla crema","desperdicio mezcla crema",
   "reproceso mezcla agua","desperdicio mezcla agua"
@@ -575,46 +586,73 @@ function toggleReelaboradoSwitch(e) {
   }
 }
 
+function toggleCintasSwitch(e) {
+  if(e.target.tagName !== 'INPUT') {
+    const cb = document.getElementById('switch-cintas');
+    cb.checked = !cb.checked;
+    applyFilters();
+  }
+}
+
+// NUEVA FUNCIÓN OPTIMIZADA PARA CONECTAR A EXCEL WEB (PAPA PARSE)
 function cargarDesdeAppsScript() {
   document.getElementById('loading-overlay').style.display = 'flex';
   document.getElementById('error-msg').style.display = 'none';
-  fetch(APPS_SCRIPT_API_URL)
-    .then(response => {
-      if(!response.ok) {
-        throw new Error("HTTP Status " + response.status + ". Puede ser un problema de permisos de Google Workspace.");
+
+  Papa.parse(EXCEL_WEB_CSV_URL, {
+    download: true,
+    header: true,
+    dynamicTyping: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      if (results.errors.length > 0 && results.data.length === 0) {
+        manejarError("No se pudieron leer las columnas de la hoja CSV en SharePoint.");
+        return;
       }
-      return response.json();
-    })
-    .then(res => {
-      if (res.error) throw new Error(res.error);
-      
+
       let maxDateObj = null;
 
-      rawData = res.datos.map(d => {
-        let fObj = d.fecha ? new Date(String(d.fecha).replace(/-/g, '/')) : null;
+      rawData = results.data.map(d => {
+        let rawFecha = d.fecha || d.Fecha || d.FECHA;
+        let fObj = rawFecha ? new Date(String(rawFecha).replace(/-/g, '/')) : null;
         if (fObj && (!maxDateObj || fObj > maxDateObj)) {
           maxDateObj = fObj;
         }
+
         return {
-          ...d,
+          orden: d.orden || d.Orden || d.ORDEN || '',
+          linea: d.linea || d.Linea || d.LINEA || '',
+          mes: String(d.mes || d.Mes || d.MES || '').toLowerCase(),
+          tipo: d.tipo || d.Tipo || d.TIPO || '',
+          producto: d.producto || d.Producto || d.PRODUCTO || '',
+          material: d.material || d.Material || d.MATERIAL || '',
+          materialDesc: d.materialDesc || d.MaterialDesc || d.MATERIALDESC || d.material || d.Material || '',
+          plan: Number(d.plan || d.Plan || d.PLAN) || 0,
+          real: Number(d.real || d.Real || d.REAL) || 0,
+          costoPlan: Number(d.costoPlan || d.CostoPlan || d.COSTOPLAN) || 0,
+          costoReal: Number(d.costoReal || d.CostoReal || d.COSTOREAL) || 0,
+          umb: d.umb || d.Umb || d.UMB || '—',
           fecha: fObj
         };
       });
-      
+
       if (maxDateObj) {
         document.getElementById('data-max-date').textContent = `Datos hasta: ${fmtFecha(maxDateObj)}`;
       } else {
         document.getElementById('data-max-date').textContent = '';
       }
-      
+
       Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
       filteredData = [...rawData];
       document.getElementById('loading-overlay').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
       resetSelectionsObject();
       applyFilters();
-    })
-    .catch(err => manejarError(err.message));
+    },
+    error: function(err) {
+      manejarError("Error de descarga desde SharePoint/Excel Web: " + err);
+    }
+  });
 }
 
 function manejarError(msg) {
@@ -623,20 +661,19 @@ function manejarError(msg) {
   
   const errorDiv = document.getElementById('error-msg');
   errorDiv.innerHTML = `
-    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error en la Carga de la API Cloud</div>
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px;">⚠️ Error al conectar con Excel Web (SharePoint)</div>
     <div>Detalle del problema: <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#ffb03a;">${msg}</code></div>
     <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
-      Recomendaciones:<br>
-      1. Asegúrate de estar logueado con tu correo de <strong>@meals.com.co</strong> en este navegador.<br>
-      2. Revisa que la pestaña de tu Google Sheets se llame exactamente <strong>BD</strong> (en mayúsculas).<br>
-      3. Verifica que la cabecera de la fila 1 contenga todas las columnas esperadas.
+      Sugerencias de resolución:<br>
+      1. Asegúrate de tener sesión iniciada en la red de <strong>Nutresa / Meals</strong> en este navegador.<br>
+      2. Revisa que el archivo de Excel esté guardado en formato <strong>.CSV</strong> dentro de SharePoint.<br>
+      3. Si aparece bloqueo CORS, debes verificar que el permiso del archivo permita acceso por enlace.
     </div>
   `;
   errorDiv.style.display = 'block';
   console.error(msg);
 }
 
-// CORRECCIÓN AQUÍ: Ahora también actualiza visualmente los elementos del DOM (.checked = true)
 function resetSelectionsObject() {
   selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
   
@@ -644,6 +681,7 @@ function resetSelectionsObject() {
   document.getElementById('switch-npdi').checked = true;
   document.getElementById('switch-mezclas').checked = true; 
   document.getElementById('switch-reelaborado').checked = true; 
+  document.getElementById('switch-cintas').checked = true;
 }
 
 function populateFilters() {
@@ -651,6 +689,7 @@ function populateFilters() {
   const excludeNpdi = document.getElementById('switch-npdi').checked;
   const excludeMezclas = document.getElementById('switch-mezclas').checked;
   const excludeReelaborado = document.getElementById('switch-reelaborado').checked;
+  const includeCintas = document.getElementById('switch-cintas').checked;
 
   const filterSpecs = [
     { dropdownId: 'd-linea', menuId: 'm-linea', key: 'linea', textAll: 'Todas las líneas', sortFn: null },
@@ -667,12 +706,12 @@ function populateFilters() {
     const trigger = dropdownEl.querySelector('.dropdown-trigger');
     
     const validDataForThisFilter = rawData.filter(d => {
-      if (excludeOutliers && OUTLIERS_MATERIALS.includes((d.materialDesc || d.material).toLowerCase())) return false;
+      const mMat = d.materialDesc || d.material || '';
+      if (excludeOutliers && OUTLIERS_MATERIALS.includes(mMat.toLowerCase())) return false;
       if (excludeNpdi && String(d.linea).toUpperCase() === 'NPDI') return false;
       if (excludeMezclas && String(d.linea).toUpperCase() === 'MEZCLAS') return false;
       if (excludeReelaborado && String(d.linea).toUpperCase() === 'REELABORADO') return false;
-
-      const mMat = d.materialDesc || d.material;
+      if (!includeCintas && mMat.toLowerCase().includes('cinta')) return false;
 
       if (spec.key !== 'linea'    && !selections.linea.includes('all')    && !selections.linea.includes(d.linea)) return false;
       if (spec.key !== 'mes'      && !selections.mes.includes('all')      && !selections.mes.includes(d.mes)) return false;
@@ -762,14 +801,16 @@ function applyFilters() {
   const excludeNpdi = document.getElementById('switch-npdi').checked;
   const excludeMezclas = document.getElementById('switch-mezclas').checked;
   const excludeReelaborado = document.getElementById('switch-reelaborado').checked;
+  const includeCintas = document.getElementById('switch-cintas').checked;
 
   filteredData = rawData.filter(d => {
-    if (excludeOutliers && OUTLIERS_MATERIALS.includes((d.materialDesc || d.material).toLowerCase())) return false;
+    const mMat = d.materialDesc || d.material || '';
+
+    if (excludeOutliers && OUTLIERS_MATERIALS.includes(mMat.toLowerCase())) return false;
     if (excludeNpdi && String(d.linea).toUpperCase() === 'NPDI') return false;
     if (excludeMezclas && String(d.linea).toUpperCase() === 'MEZCLAS') return false;
     if (excludeReelaborado && String(d.linea).toUpperCase() === 'REELABORADO') return false;
-
-    const mMat = d.materialDesc || d.material;
+    if (!includeCintas && mMat.toLowerCase().includes('cinta')) return false;
 
     return (selections.linea.includes('all')    || selections.linea.includes(d.linea)) &&
           (selections.mes.includes('all')       || selections.mes.includes(d.mes)) &&
@@ -784,7 +825,7 @@ function applyFilters() {
 
 function resetFilters() {
   resetSelectionsObject();
-  applyFilters(); // Forzamos la reevaluación con los estados reales
+  applyFilters();
 }
 
 function fmt(n) { return Number(n).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
@@ -1319,10 +1360,3 @@ function renderAll() {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
