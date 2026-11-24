@@ -261,6 +261,13 @@
     padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; outline: none;
   }
 
+  .btn-export {
+    background: var(--surface); border: 1px solid var(--positive); color: var(--positive);
+    padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; transition: all .2s;
+  }
+  .btn-export:hover { background: var(--positive); color: #ffffff; }
+
   .sortable { cursor: pointer; user-select: none; }
   .sortable:hover { color: var(--accent); }
   .sortable::after { content: ' \2195'; font-size: 9px; opacity: 0.4; }
@@ -578,6 +585,10 @@
         <div class="table-controls">
           <input class="table-search" id="orden-search" type="text" placeholder="Buscar por orden, línea o producto..." oninput="ordenTableState.page=1; renderTablaOrden()" />
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button class="btn-export" type="button" onclick="exportarOrdenesExcel()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Exportar Excel
+            </button>
             <span class="page-info" id="orden-page-info"></span>
             <select class="page-size-select" id="orden-page-size" onchange="ordenTableState.page=1; ordenTableState.pageSize=+this.value; renderTablaOrden()">
               <option value="20" selected>20 / pág</option>
@@ -650,7 +661,40 @@
     var filteredData = [];
     var charts = {};
     var selections = { linea: ['all'], mes: ['all'], tipo: ['all'], producto: ['all'], material: ['all'], orden: ['all'] };
-    var mesOrder = { enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6, julio:7, agosto:8, septiembre:9, octubre:10, noviembre:11, diciembre:12 };
+
+    function getMesNum(m) {
+      if (!m) return 99;
+      var s = String(m).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").substring(0, 3);
+      var map = {
+        'ene': 1, 'jan': 1,
+        'feb': 2,
+        'mar': 3,
+        'abr': 4, 'apr': 4,
+        'may': 5,
+        'jun': 6,
+        'jul': 7,
+        'ago': 8, 'aug': 8,
+        'sep': 9, 'set': 9,
+        'oct': 10,
+        'nov': 11,
+        'dic': 12, 'dec': 12
+      };
+      return map[s] || 99;
+    }
+
+    function parseFechaIso(f) {
+      if (!f) return '';
+      var s = String(f).trim();
+      var mIso = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (mIso) {
+        return mIso[1] + '-' + mIso[2].padStart(2, '0') + '-' + mIso[3].padStart(2, '0');
+      }
+      var mLat = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (mLat) {
+        return mLat[3] + '-' + mLat[2].padStart(2, '0') + '-' + mLat[1].padStart(2, '0');
+      }
+      return s.substring(0, 10);
+    }
 
     window.detalleTableState = { page: 1, pageSize: 20, sortCol: 'varCoPct', sortDir: 'desc', rows: [] };
     window.materialesTableState = { page: 1, pageSize: 20, sortCol: 'varCostoNeto', sortDir: 'desc', rows: [] };
@@ -740,8 +784,8 @@
             material: matCode,
             materialDesc: matDesc || matCode,
             producto: r[COL.textoProducto] ? String(r[COL.textoProducto]).trim() : '',
-            mes: r[COL.mes] ? String(r[COL.mes]).trim().toLowerCase() : '',
-            fecha: r[COL.fecha] ? String(r[COL.fecha]).substring(0, 10) : '',
+            mes: r[COL.mes] ? String(r[COL.mes]).trim() : '',
+            fecha: parseFechaIso(r[COL.fecha]),
             tipo: r[COL.tipo] ? String(r[COL.tipo]).trim() : '',
             linea: r[COL.linea] ? String(r[COL.linea]).trim() : '',
             plan: num(r[COL.cantPlan]),
@@ -754,7 +798,15 @@
 
         if (overlay) overlay.style.display = 'none';
         var st = $('dp-status');
-        if (st) st.textContent = fmt(rawData.length) + ' registros · ' + new Date().toLocaleTimeString('es-CO');
+        if (st) {
+          var maxFecha = '';
+          rawData.forEach(function (d) {
+            if (d.fecha && d.fecha > maxFecha) {
+              maxFecha = d.fecha;
+            }
+          });
+          st.textContent = maxFecha ? ('Actualizado hasta el ' + maxFecha) : 'Sin fecha registrada';
+        }
         applyFilters();
       } catch (err) {
         if (overlay) overlay.style.display = 'none';
@@ -772,7 +824,7 @@
     function populateFilters() {
       var specs = [
         { id: 'd-linea', menu: 'm-linea', key: 'linea', textAll: 'Todas las líneas' },
-        { id: 'd-mes', menu: 'm-mes', key: 'mes', textAll: 'Todos los meses', sorter: function(a,b){ return (mesOrder[a]||99)-(mesOrder[b]||99); } },
+        { id: 'd-mes', menu: 'm-mes', key: 'mes', textAll: 'Todos los meses', sorter: function(a,b){ return getMesNum(a) - getMesNum(b); } },
         { id: 'd-tipo', menu: 'm-tipo', key: 'tipo', textAll: 'Todos los tipos' },
         { id: 'd-producto', menu: 'm-producto', key: 'producto', textAll: 'Todos los productos' },
         { id: 'd-material', menu: 'm-material', key: 'materialDesc', textAll: 'Todos los materiales' },
@@ -825,7 +877,7 @@
             var div = document.createElement('div');
             div.className = 'dropdown-item';
             var chk = !isAll && curr.includes(val);
-            var label = spec.key === 'mes' ? val.charAt(0).toUpperCase() + val.slice(1) : val;
+            var label = val;
             div.innerHTML = '<input type="checkbox" ' + (chk ? 'checked' : '') + '> <span>' + esc(label) + '</span>';
             div.onclick = function (e) { handleCheckbox(e, spec.key, val); };
             itemsWrap.appendChild(div);
@@ -838,7 +890,7 @@
         });
 
         if (isAll || curr.length === 0) trigger.textContent = spec.textAll;
-        else if (curr.length === 1) trigger.textContent = spec.key === 'mes' ? curr[0].charAt(0).toUpperCase() + curr[0].slice(1) : curr[0];
+        else if (curr.length === 1) trigger.textContent = curr[0];
         else trigger.textContent = curr.length + ' seleccionados';
       });
     }
@@ -1026,7 +1078,6 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                // Muestra el nombre completo del producto sin recortar
                 title: function (ctx) { return top[ctx[0].dataIndex]; },
                 label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + fmt(ctx.parsed.y); }
               }
@@ -1072,7 +1123,6 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                // Nombre completo del material en el tooltip
                 title: function (ctx) { return items[ctx[0].dataIndex].labelCompleto; },
                 label: function (ctx) { return ' Variación: ' + (ctx.parsed.x >= 0 ? '+' : '') + ctx.parsed.x.toFixed(2) + '%'; }
               }
@@ -1093,11 +1143,11 @@
         map[d.mes].planCo += d.costoPlan;
         map[d.mes].realCo += d.costoReal;
       });
-      var meses = Object.keys(map).sort(function(a,b){ return (mesOrder[a]||99)-(mesOrder[b]||99); });
+      var meses = Object.keys(map).sort(function(a,b){ return getMesNum(a) - getMesNum(b); });
       charts.mes = new Chart($('chart-mes').getContext('2d'), {
         type: 'line',
         data: {
-          labels: meses.map(function(m){ return m.charAt(0).toUpperCase() + m.slice(1); }),
+          labels: meses,
           datasets: [
             { label: 'Var % (Kg)', data: meses.map(function(m){ return map[m].planKG ? ((map[m].realKG - map[m].planKG)/map[m].planKG)*100 : 0; }), borderColor: '#0f6cbd', backgroundColor: 'rgba(15,108,189,0.1)', tension: .3, fill: true },
             { label: 'Var Costo %', data: meses.map(function(m){ return map[m].planCo ? ((map[m].realCo - map[m].planCo)/map[m].planCo)*100 : 0; }), borderColor: '#d97706', tension: .3, borderDash: [4, 4], fill: false }
@@ -1106,6 +1156,14 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: function (ctx) { return meses[ctx[0].dataIndex]; },
+                label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) + '%'; }
+              }
+            }
+          },
           scales: { y: { ticks: { callback: function(v){ return v.toFixed(1) + '%'; } } } }
         }
       });
@@ -1137,7 +1195,6 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                // Nombre completo del producto en tooltip de costos
                 title: function (ctx) { return top[ctx[0].dataIndex]; },
                 label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + fmtCOP(ctx.parsed.y); }
               }
@@ -1177,7 +1234,6 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                // Nombre completo del material en tooltip de costos
                 title: function (ctx) { return top[ctx[0].dataIndex]; },
                 label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + fmtCOP(ctx.parsed.y); }
               }
@@ -1360,6 +1416,51 @@
       else { ordenTableState.sortCol = col; ordenTableState.sortDir = 'desc'; }
       ordenTableState.page = 1;
       renderTablaOrden();
+    };
+
+    window.exportarOrdenesExcel = function () {
+      var os = $('orden-search');
+      var q = (os ? os.value : '').toLowerCase();
+      var rows = ordenTableState.rows.filter(function(r){
+        return !q || r.orden.toLowerCase().indexOf(q) >= 0 || r.linea.toLowerCase().indexOf(q) >= 0 || r.prod.toLowerCase().indexOf(q) >= 0 || r.materialesConcat.toLowerCase().indexOf(q) >= 0;
+      });
+
+      if (!rows.length) {
+        alert('No hay datos para exportar con los filtros actuales.');
+        return;
+      }
+
+      var headers = ['Orden', 'Linea', 'Producto', 'Materiales Usados', 'Fecha', 'Plan (Kg)', 'Real (Kg)', 'Var %', 'Costo Plan ($)', 'Costo Real ($)', 'Var Costo %', 'Estado'];
+      var csvContent = '\uFEFF';
+      csvContent += headers.map(function(h){ return '"' + h.replace(/"/g, '""') + '"'; }).join(';') + '\r\n';
+
+      rows.forEach(function(r) {
+        var fila = [
+          r.orden,
+          r.linea,
+          r.prod || '',
+          r.materialesConcat || '',
+          r.fecha || '',
+          Math.round(r.plan || 0),
+          Math.round(r.real || 0),
+          ((r.varKGpct || 0) * 100).toFixed(2) + '%',
+          Math.round(r.cp || 0),
+          Math.round(r.cr || 0),
+          ((r.varCoPct || 0) * 100).toFixed(2) + '%',
+          r.varCoPct > 0 ? 'Sobrecosto' : 'Ahorro'
+        ];
+        csvContent += fila.map(function(v){ return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';') + '\r\n';
+      });
+
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'Detalle_Ordenes_Produccion_' + new Date().toISOString().substring(0, 10) + '.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     };
 
     window.renderTablaOrden = function () {
