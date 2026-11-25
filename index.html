@@ -190,7 +190,7 @@
   .chart-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    width: 100%; min-width: 0; overflow: hidden;
+    width: 100%; min-width: 0; overflow: visible;
   }
   .col-6 { grid-column: span 1; }
   .col-12 { grid-column: span 2; }
@@ -209,7 +209,7 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
   .chart-wrap canvas {
     width: 100% !important;
@@ -682,20 +682,6 @@
       return map[s] || 99;
     }
 
-    function parseFechaIso(f) {
-      if (!f) return '';
-      var s = String(f).trim();
-      var mIso = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-      if (mIso) {
-        return mIso[1] + '-' + mIso[2].padStart(2, '0') + '-' + mIso[3].padStart(2, '0');
-      }
-      var mLat = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-      if (mLat) {
-        return mLat[3] + '-' + mLat[2].padStart(2, '0') + '-' + mLat[1].padStart(2, '0');
-      }
-      return s.substring(0, 10);
-    }
-
     window.detalleTableState = { page: 1, pageSize: 20, sortCol: 'varCoPct', sortDir: 'desc', rows: [] };
     window.materialesTableState = { page: 1, pageSize: 20, sortCol: 'varCostoNeto', sortDir: 'desc', rows: [] };
     window.ordenTableState = { page: 1, pageSize: 20, sortCol: 'fecha', sortDir: 'asc', rows: [] };
@@ -785,7 +771,7 @@
             materialDesc: matDesc || matCode,
             producto: r[COL.textoProducto] ? String(r[COL.textoProducto]).trim() : '',
             mes: r[COL.mes] ? String(r[COL.mes]).trim() : '',
-            fecha: parseFechaIso(r[COL.fecha]),
+            fecha: r[COL.fecha] ? String(r[COL.fecha]).substring(0, 10) : '',
             tipo: r[COL.tipo] ? String(r[COL.tipo]).trim() : '',
             linea: r[COL.linea] ? String(r[COL.linea]).trim() : '',
             plan: num(r[COL.cantPlan]),
@@ -821,14 +807,40 @@
       }
     }
 
+    function matchesSwitches(d) {
+      var exclOutliers = $('switch-outliers') ? $('switch-outliers').checked : false;
+      var exclNpdi = $('switch-npdi') ? $('switch-npdi').checked : false;
+      var exclMezclas = $('switch-mezclas') ? $('switch-mezclas').checked : false;
+      var exclReelaborado = $('switch-reelaborado') ? $('switch-reelaborado').checked : false;
+      var inclCintas = $('switch-cintas') ? $('switch-cintas').checked : false;
+
+      var m = d.materialDesc.toLowerCase();
+      if (exclOutliers && (m.indexOf('reproceso') >= 0 || m.indexOf('merma') >= 0 || m.indexOf('desperdicio') >= 0)) return false;
+      if (exclNpdi && d.linea.toUpperCase() === 'NPDI') return false;
+      if (exclMezclas && d.linea.toUpperCase() === 'MEZCLAS') return false;
+      if (exclReelaborado && d.linea.toUpperCase() === 'REELABORADO') return false;
+      if (!inclCintas && m.indexOf('cinta') >= 0) return false;
+      return true;
+    }
+
+    function matchesDropdowns(d, excludeKey) {
+      if (excludeKey !== 'linea' && !selections.linea.includes('all') && !selections.linea.includes(d.linea)) return false;
+      if (excludeKey !== 'mes' && !selections.mes.includes('all') && !selections.mes.includes(d.mes)) return false;
+      if (excludeKey !== 'tipo' && !selections.tipo.includes('all') && !selections.tipo.includes(d.tipo)) return false;
+      if (excludeKey !== 'producto' && !selections.producto.includes('all') && !selections.producto.includes(d.producto)) return false;
+      if (excludeKey !== 'materialDesc' && !selections.material.includes('all') && !selections.material.includes(d.materialDesc)) return false;
+      if (excludeKey !== 'orden' && !selections.orden.includes('all') && !selections.orden.includes(d.orden)) return false;
+      return true;
+    }
+
     function populateFilters() {
       var specs = [
-        { id: 'd-linea', menu: 'm-linea', key: 'linea', textAll: 'Todas las líneas' },
-        { id: 'd-mes', menu: 'm-mes', key: 'mes', textAll: 'Todos los meses', sorter: function(a,b){ return getMesNum(a) - getMesNum(b); } },
-        { id: 'd-tipo', menu: 'm-tipo', key: 'tipo', textAll: 'Todos los tipos' },
-        { id: 'd-producto', menu: 'm-producto', key: 'producto', textAll: 'Todos los productos' },
-        { id: 'd-material', menu: 'm-material', key: 'materialDesc', textAll: 'Todos los materiales' },
-        { id: 'd-orden', menu: 'm-orden', key: 'orden', textAll: 'Todas las órdenes', sorter: function(a,b){ return String(a).localeCompare(String(b), undefined, {numeric:true}); } }
+        { id: 'd-linea', menu: 'm-linea', key: 'linea', selKey: 'linea', textAll: 'Todas las líneas' },
+        { id: 'd-mes', menu: 'm-mes', key: 'mes', selKey: 'mes', textAll: 'Todos los meses', sorter: function(a,b){ return getMesNum(a) - getMesNum(b); } },
+        { id: 'd-tipo', menu: 'm-tipo', key: 'tipo', selKey: 'tipo', textAll: 'Todos los tipos' },
+        { id: 'd-producto', menu: 'm-producto', key: 'producto', selKey: 'producto', textAll: 'Todos los productos' },
+        { id: 'd-material', menu: 'm-material', key: 'materialDesc', selKey: 'material', textAll: 'Todos los materiales' },
+        { id: 'd-orden', menu: 'm-orden', key: 'orden', selKey: 'orden', textAll: 'Todas las órdenes', sorter: function(a,b){ return String(a).localeCompare(String(b), undefined, {numeric:true}); } }
       ];
 
       specs.forEach(function (spec) {
@@ -839,6 +851,8 @@
         var uniqueMap = {};
 
         rawData.forEach(function (d) {
+          if (!matchesSwitches(d)) return;
+          if (!matchesDropdowns(d, spec.key)) return;
           var v = d[spec.key];
           if (v) uniqueMap[v] = true;
         });
@@ -847,7 +861,7 @@
         if (spec.sorter) items.sort(spec.sorter);
         else items.sort(function(a,b){ return String(a).localeCompare(String(b), 'es'); });
 
-        var curr = selections[spec.key] || ['all'];
+        var curr = selections[spec.selKey] || ['all'];
         var isAll = curr.includes('all');
 
         var prevSearch = menu.querySelector('.dropdown-search');
@@ -869,7 +883,7 @@
           var allDiv = document.createElement('div');
           allDiv.className = 'dropdown-item all-option';
           allDiv.innerHTML = '<input type="checkbox" ' + (isAll ? 'checked' : '') + '> <span>' + esc(spec.textAll) + '</span>';
-          allDiv.onclick = function (e) { handleCheckbox(e, spec.key, 'all'); };
+          allDiv.onclick = function (e) { handleCheckbox(e, spec.selKey, 'all'); };
           if (!filterText || spec.textAll.toLowerCase().indexOf(filterText) >= 0) itemsWrap.appendChild(allDiv);
 
           items.forEach(function (val) {
@@ -879,7 +893,7 @@
             var chk = !isAll && curr.includes(val);
             var label = val;
             div.innerHTML = '<input type="checkbox" ' + (chk ? 'checked' : '') + '> <span>' + esc(label) + '</span>';
-            div.onclick = function (e) { handleCheckbox(e, spec.key, val); };
+            div.onclick = function (e) { handleCheckbox(e, spec.selKey, val); };
             itemsWrap.appendChild(div);
           });
         }
@@ -938,27 +952,23 @@
     });
 
     window.applyFilters = function () {
-      var exclOutliers = $('switch-outliers') ? $('switch-outliers').checked : false;
-      var exclNpdi = $('switch-npdi') ? $('switch-npdi').checked : false;
-      var exclMezclas = $('switch-mezclas') ? $('switch-mezclas').checked : false;
-      var exclReelaborado = $('switch-reelaborado') ? $('switch-reelaborado').checked : false;
-      var inclCintas = $('switch-cintas') ? $('switch-cintas').checked : false;
+      var keyMap = { linea: 'linea', mes: 'mes', tipo: 'tipo', producto: 'producto', material: 'materialDesc', orden: 'orden' };
+      Object.keys(keyMap).forEach(function (selKey) {
+        if (!selections[selKey].includes('all')) {
+          var dataKey = keyMap[selKey];
+          var validSet = new Set();
+          rawData.forEach(function (d) {
+            if (matchesSwitches(d) && matchesDropdowns(d, dataKey) && d[dataKey]) {
+              validSet.add(d[dataKey]);
+            }
+          });
+          selections[selKey] = selections[selKey].filter(function (val) { return validSet.has(val); });
+          if (selections[selKey].length === 0) selections[selKey] = ['all'];
+        }
+      });
 
       filteredData = rawData.filter(function (d) {
-        var m = d.materialDesc.toLowerCase();
-        if (exclOutliers && (m.indexOf('reproceso') >= 0 || m.indexOf('merma') >= 0 || m.indexOf('desperdicio') >= 0)) return false;
-        if (exclNpdi && d.linea.toUpperCase() === 'NPDI') return false;
-        if (exclMezclas && d.linea.toUpperCase() === 'MEZCLAS') return false;
-        if (exclReelaborado && d.linea.toUpperCase() === 'REELABORADO') return false;
-        if (!inclCintas && m.indexOf('cinta') >= 0) return false;
-
-        if (!selections.linea.includes('all') && !selections.linea.includes(d.linea)) return false;
-        if (!selections.mes.includes('all') && !selections.mes.includes(d.mes)) return false;
-        if (!selections.tipo.includes('all') && !selections.tipo.includes(d.tipo)) return false;
-        if (!selections.producto.includes('all') && !selections.producto.includes(d.producto)) return false;
-        if (!selections.material.includes('all') && !selections.material.includes(d.materialDesc)) return false;
-        if (!selections.orden.includes('all') && !selections.orden.includes(d.orden)) return false;
-        return true;
+        return matchesSwitches(d) && matchesDropdowns(d, null);
       });
 
       populateFilters();
@@ -1159,8 +1169,7 @@
           plugins: {
             tooltip: {
               callbacks: {
-                title: function (ctx) { return meses[ctx[0].dataIndex]; },
-                label: function (ctx) { return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) + '%'; }
+                title: function (ctx) { return meses[ctx[0].dataIndex]; }
               }
             }
           },
